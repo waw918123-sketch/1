@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ScientificPDFDocumentOutput",
+  "description": "Structured, evidence-traceable output produced by scripts/parse_paper.py",
+  "type": "object",
+  "required": [
+    "status",
+    "source_pdf",
+    "metadata",
+    "front_matter",
+    "sections",
+    "blocks",
+    "tables",
+    "equations",
+    "figures",
+    "footnotes",
+    "headers_footers",
+    "uncertainties"
+  ],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["success", "partial", "blocked_encrypted", "failed_missing_input", "failed_corrupted_pdf"]
+    },
+    "source_pdf": { "type": "string" },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "num_pages": { "type": "integer" },
+        "backend_used": { "type": "string" },
+        "estimated_body_font_size": { "type": "number" },
+        "page_diagnostics": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "pdf_page": { "type": "integer" },
+              "printed_page": { "type": ["string", "null"] },
+              "quality": {
+                "type": "string",
+                "enum": ["native_text", "mixed_or_low_text", "garbled_font", "scanned_image", "encrypted_or_error"]
+              },
+              "multi_column_detected": { "type": "boolean" },
+              "gutter_x": { "type": ["number", "null"] },
+              "ocr_applied": { "type": "boolean" },
+              "ocr_confidence": { "type": ["number", "null"] },
+              "preview_png": { "type": ["string", "null"] }
+            }
+          }
+        }
+      }
+    },
+    "blocks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["block_id", "pdf_page", "bbox", "role", "text", "rich_text", "method"],
+        "properties": {
+          "block_id": { "type": "string" },
+          "pdf_page": { "type": "integer" },
+          "printed_page": { "type": ["string", "null"] },
+          "column_index": { "type": "integer" },
+          "bbox": { "type": "array", "items": { "type": "number" }, "minItems": 4, "maxItems": 4 },
+          "role": {
+            "type": "string",
+            "enum": ["title", "heading", "paragraph", "figure_caption", "table_caption", "equation", "footnote"]
+          },
+          "text": { "type": "string" },
+          "rich_text": { "type": "string" },
+          "method": { "type": "string", "enum": ["native_text", "ocr_fallback"] },
+          "warnings": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "tables": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["table_id", "pages", "headers", "rows", "markdown", "continuation_merged"],
+        "properties": {
+          "table_id": { "type": "string" },
+          "pages": { "type": "array", "items": { "type": "integer" } },
+          "caption": { "type": ["string", "null"] },
+          "headers": { "type": "array", "items": { "type": "string" } },
+          "rows": { "type": "array", "items": { "type": "array", "items": { "type": "string" } } },
+          "markdown": { "type": "string" },
+          "continuation_merged": { "type": "boolean" }
+        }
+      }
+    },
+    "uncertainties": {
+      "type": "array",
+      "items": { "type": "object" }
+    }
+  }
+}

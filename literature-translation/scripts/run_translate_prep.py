@@ -24,14 +24,16 @@ def _infer_scope_from_task(case_data: Dict[str, Any], task_md_text: str) -> Dict
         scope.update(explicit_scope)
 
     combined = f"{json.dumps(case_data, ensure_ascii=False)}\n{task_md_text}"
-    # Detect explicit figure/table ID restriction (e.g. Slide 13: 'only g001, g002' / '只翻 g001、g002')
+    # Detect explicit figure/table ID restriction (e.g. Slide 13: 'only g001, g002' / '只翻 g001、g002' / 'Scope: fig1, fig2')
     m_only_ids = re.search(
-        r"(?:only\s+(?:translate\s+)?|只翻译?|仅翻译?)[^.\n。]{0,80}?((?:g\d+|fig\d+|tbl\d+|table\d+)(?:\s*[,、和与and\s]+(?:g\d+|fig\d+|tbl\d+|table\d+))*)",
+        r"(?:only\s+(?:translate\s+)?(?:the\s+(?:labels?,?\s*|titles?,?\s*|captions?,?\s*|and\s+|of\s+|figures?\s*)*)?|"
+        r"(?:scope|target(?:\s+figures?)?)\s*[:：]\s*|只翻译?|仅翻译?)"
+        r"[^.\n。]{0,90}?((?:g\d+|fig[-_]?\d+|tbl[-_]?\d+|table[-_]?\d+)(?:\s*[,、和与and\s]+(?:g\d+|fig[-_]?\d+|tbl[-_]?\d+|table[-_]?\d+))*)",
         combined,
         re.I,
     )
     if m_only_ids and "target_ids" not in scope:
-        ids = re.findall(r"\b(?:g\d+|fig\d+|tbl\d+|table\d+)\b", m_only_ids.group(1), re.I)
+        ids = re.findall(r"\b(?:g\d+|fig[-_]?\d+|tbl[-_]?\d+|table[-_]?\d+)\b", m_only_ids.group(1), re.I)
         if ids:
             scope["target_ids"] = list(dict.fromkeys(ids))
 
@@ -70,7 +72,7 @@ def _build_batches(units: List[Dict[str, Any]], max_chars: int = 9000) -> List[D
 
     for u in units:
         usz = max(80, u.get("char_count", len(u["source_text"])))
-        if cur_units and (cur_chars + usz > max_chars or len(cur_units) >= 24):
+        if cur_units and (cur_chars + usz > max_chars or len(cur_units) >= 45):
             batches.append({
                 "batch_id": f"batch_{len(batches) + 1:03d}",
                 "unit_count": len(cur_units),
@@ -79,17 +81,22 @@ def _build_batches(units: List[Dict[str, Any]], max_chars: int = 9000) -> List[D
             })
             cur_units = []
             cur_chars = 0
-        cur_units.append({
+        sents = u.get("sentences", [])
+        compact_u: Dict[str, Any] = {
             "unit_id": u["unit_id"],
             "locator": u["locator"],
             "role": u.get("role"),
-            "section": u.get("section"),
             "source_text": u["source_text"],
-            "sentences": [
-                {"sentence_id": s["sentence_id"], "locator": s["locator"], "source_text": s["source_text"]}
-                for s in u.get("sentences", [])
-            ],
-        })
+        }
+        # Avoid repeating source_text for 1-sentence units to conserve weak-model context budget (Slide 7/25)
+        if len(sents) <= 1:
+            compact_u["sentence_ids"] = [s["sentence_id"] for s in sents]
+        else:
+            compact_u["sentences"] = [
+                {"sentence_id": s["sentence_id"], "source_text": s["source_text"]}
+                for s in sents
+            ]
+        cur_units.append(compact_u)
         cur_chars += usz
 
     if cur_units:
@@ -261,13 +268,13 @@ def main() -> int:
     man_p = work_dir / "manifest.json"
     man_txt = json.dumps(manifest, ensure_ascii=False, indent=2)
     man_p.write_text(man_txt, encoding="utf-8")
-    if len(man_txt) > 24000:
+    if len(man_txt) > 8000:
         slim = dict(manifest)
-        slim["batches"] = batch_index[:25]
+        slim["batches"] = batch_index[:12]
         slim["truncated"] = True
-        slim["hint"] = f"Full manifest saved at {man_p}"
+        slim["hint"] = f"Full manifest ({len(batch_index)} batches) saved at {man_p}"
         man_txt = json.dumps(slim, ensure_ascii=False, indent=2)
-    print(man_txt[:24000])
+    print(man_txt[:8000])
     return 0
 
 

@@ -69,22 +69,32 @@ def _extract_numbers(text: str) -> Counter[str]:
     return Counter(cleaned)
 
 
+def _has_cjk(text: str) -> bool:
+    return any(0x4E00 <= ord(ch) <= 0x9FFF for ch in (text or ""))
+
+
 def _check_clause_negation_flip(src: str, tgt: str) -> Optional[str]:
-    """Detect negation scope swaps across contrastive clauses (e.g. 'does not increase A, but reduces B' -> '增加A，但不减少B')."""
+    """Detect negation scope swaps across contrastive clauses bidirectionally (EN<->ZH)."""
     if not src or not tgt:
         return None
-    src_clauses = [c.strip() for c in EN_PIVOT_SPLIT_RE.split(src) if c and c.strip()]
-    tgt_clauses = [c.strip() for c in ZH_PIVOT_SPLIT_RE.split(tgt) if c and c.strip()]
+    src_zh = _has_cjk(src)
+    tgt_zh = _has_cjk(tgt)
+    src_pivot = ZH_PIVOT_SPLIT_RE if src_zh else EN_PIVOT_SPLIT_RE
+    tgt_pivot = ZH_PIVOT_SPLIT_RE if tgt_zh else EN_PIVOT_SPLIT_RE
+    src_neg = ZH_NEG_RE if src_zh else EN_NEG_RE
+    tgt_neg = ZH_NEG_RE if tgt_zh else EN_NEG_RE
+
+    src_clauses = [c.strip() for c in src_pivot.split(src) if c and c.strip()]
+    tgt_clauses = [c.strip() for c in tgt_pivot.split(tgt) if c and c.strip()]
     if len(src_clauses) < 2 or len(src_clauses) != len(tgt_clauses):
-        # Fallback: compare overall polarity parity when simple 2-part contrast differs cleanly
         if len(src_clauses) >= 2 and len(tgt_clauses) >= 2:
-            s_vec = [1 if EN_NEG_RE.search(c) else 0 for c in src_clauses[:2]]
-            t_vec = [1 if ZH_NEG_RE.search(c) else 0 for c in tgt_clauses[:2]]
+            s_vec = [1 if src_neg.search(c) else 0 for c in src_clauses[:2]]
+            t_vec = [1 if tgt_neg.search(c) else 0 for c in tgt_clauses[:2]]
             if sum(s_vec) == sum(t_vec) and s_vec != t_vec:
                 return f"clause negation polarity flipped: source={s_vec} vs translation={t_vec}"
         return None
-    s_vec = [1 if EN_NEG_RE.search(c) else 0 for c in src_clauses]
-    t_vec = [1 if ZH_NEG_RE.search(c) else 0 for c in tgt_clauses]
+    s_vec = [1 if src_neg.search(c) else 0 for c in src_clauses]
+    t_vec = [1 if tgt_neg.search(c) else 0 for c in tgt_clauses]
     if s_vec != t_vec and (sum(s_vec) > 0 or sum(t_vec) > 0):
         return f"clause negation polarity mismatch: source={s_vec} vs translation={t_vec}"
     return None
@@ -332,8 +342,9 @@ def main() -> int:
     args = parser.parse_args()
 
     res_p = Path(args.result)
+    merged_obj: Optional[Dict[str, Any]] = None
     if args.merge:
-        merge_patch(res_p, Path(args.merge))
+        merged_obj = merge_patch(res_p, Path(args.merge))
 
     if not res_p.exists():
         print(json.dumps({"passed": False, "errors": [f"result.json not found: {res_p}"]}), file=sys.stderr)
@@ -345,6 +356,21 @@ def main() -> int:
         Path(args.manifest) if args.manifest else None,
         Path(args.glossary) if args.glossary else None,
     )
+    # Compact incremental checkpoint mode when --merge is used without --strict (Slide 7/25 budget conservation)
+    if args.merge and not args.strict:
+        translated_errs = [e for e in report.get("errors", []) if not e.startswith("incomplete translation coverage:")]
+        translated_warns = [w for w in report.get("warnings", []) if not w.startswith("required field ")]
+        inc_out = {
+            "status": "merged",
+            "result_status": (merged_obj or {}).get("status"),
+            "coverage": report.get("coverage"),
+            "coverage_ratio": report.get("coverage_ratio"),
+            "translated_unit_errors": translated_errs[:20],
+            "translated_unit_warnings": translated_warns[:10],
+        }
+        print(json.dumps(inc_out, ensure_ascii=False, indent=2))
+        return 0
+
     out_txt = json.dumps(report, ensure_ascii=False, indent=2)
     if len(out_txt) > 24000:
         slim = dict(report)

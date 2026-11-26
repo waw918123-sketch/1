@@ -65,6 +65,17 @@ def _parse_text_glossary(text: str, origin: str, store: Dict[str, Dict[str, Any]
             if any(0x4E00 <= ord(ch) <= 0x9FFF for ch in tgt_cand) or "glossary" in origin.lower():
                 if src_cand.lower() not in ("case_id", "task", "note", "status", "source", "file", "url"):
                     _add_term(store, src_cand, tgt_cand, origin)
+        # Prose patterns in task instructions: translate "X" as "Y" / 将 X 译为「Y」
+        for pm in re.finditer(
+            r"(?:translate\s+[\"'`]([A-Za-z][A-Za-z0-9\-\s]{2,60})[\"'`]\s+(?:as|to|into)\s+[\"'`「]([^\"'`」]{1,60})[\"'`」]|"
+            r"(?:将|把)\s*[\"'`]?([A-Za-z][A-Za-z0-9\-\s]{2,60})[\"'`]?\s*(?:固定)?译[作为成]\s*[\"'`「]?([^\s\"'`」，。、；]{1,60})[\"'`」]?)",
+            clean_ln,
+            re.I,
+        ):
+            s_val = pm.group(1) or pm.group(3)
+            t_val = pm.group(2) or pm.group(4)
+            if s_val and t_val:
+                _add_term(store, s_val, t_val, origin)
 
 
 def _extract_from_structured_obj(obj: Any, origin: str, store: Dict[str, Dict[str, Any]]) -> None:

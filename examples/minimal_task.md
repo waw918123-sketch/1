@@ -11,8 +11,8 @@
 3. Report whether the paper specifies the reactor inner diameter.
 
 ## Expected Invocation
-```bash
-python3 "$SKILL_DIR/scripts/pdf_probe.py" /input/synthetic_paper.pdf --out /app/work/parse/probe.json
-python3 "$SKILL_DIR/scripts/pdf_extract.py" /input/synthetic_paper.pdf --out-dir /app/work/parse
+```sh
+python3 "$SKILL_DIR/scripts/run_pipeline.py" --input-dir /input --work-dir /app/work
+python3 "$SKILL_DIR/scripts/query_doc.py" --doc /app/work/parse/document.json --query "Catalyst B"
 python3 "$SKILL_DIR/scripts/audit_result.py" --result /app/output/result.json --case /input/case.json --doc /app/work/parse/document.json --strict
 ```

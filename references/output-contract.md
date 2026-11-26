@@ -42,12 +42,13 @@ Rules for `quote`:
 
 ## 4. Verification Before Submission
 
-Run:
-```bash
+Run (add `--ocr /app/work/parse/ocr/ocr_results.json` whenever scanned/OCR quotes are cited):
+```sh
 python3 "$SKILL_DIR/scripts/audit_result.py" \
   --result /app/output/result.json \
   --case /input/case.json \
   --doc /app/work/parse/document.json \
+  --ocr /app/work/parse/ocr/ocr_results.json \
   --strict
 ```
 

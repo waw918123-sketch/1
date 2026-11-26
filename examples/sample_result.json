@@ -1,0 +1,62 @@
+{
+  "_example_notice": "ILLUSTRATIVE SYNTHETIC EXAMPLE OUTPUT ONLY — NOT A REAL TEST RESULT.",
+  "case_id": "example-synthetic-001",
+  "status": "completed",
+  "answers": [
+    {
+      "question_id": "Q1",
+      "answer": "673 K",
+      "evidence": {
+        "page": 1,
+        "block_id": "p1_b6",
+        "section": "2. Experimental Setup",
+        "bbox": [312.0, 148.2, 540.0, 210.4],
+        "quote": "Catalyst B was calcined at 673 K under flowing air for 3 h."
+      }
+    },
+    {
+      "question_id": "Q2",
+      "answer": "92.4%",
+      "evidence": {
+        "page": 2,
+        "table_id": "tbl_1",
+        "caption_block_id": "p2_b2",
+        "bbox": [72.0, 190.0, 520.0, 310.0],
+        "quote": "Catalyst B 673 K 84.1% 92.4%"
+      }
+    },
+    {
+      "question_id": "Q3",
+      "answer": "unreported",
+      "evidence": {
+        "page": 1,
+        "block_id": "p1_b6",
+        "section": "2. Experimental Setup",
+        "quote": "Catalyst B was calcined at 673 K under flowing air for 3 h."
+      },
+      "note": "Section 2 describes calcination and flow conditions but does not report reactor inner diameter."
+    }
+  ],
+  "tables_extracted": [
+    {
+      "table_id": "tbl_1",
+      "page": 2,
+      "caption": "Table 1. Catalytic activity and selectivity comparison.",
+      "markdown": "| Catalyst | Temp | Conversion | Selectivity |\n| --- | --- | --- | --- |\n| Catalyst A | 623 K | 71.2% | 88.0% |\n| Catalyst B | 673 K | 84.1% | 92.4% |"
+    }
+  ],
+  "sources": [
+    {
+      "file": "/input/synthetic_paper.pdf",
+      "pages_inspected": [1, 2],
+      "method": "pdf_extract.py (pymupdf + pdfplumber)"
+    }
+  ],
+  "uncertainty": [
+    "Reactor inner diameter is not reported in the examined text or tables."
+  ],
+  "change_records": [
+    "Used X-Y cut column ordering on pages 1-2 to prevent left/right column interleaving.",
+    "Verified result.json citations against document.json via audit_result.py."
+  ]
+}

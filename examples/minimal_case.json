@@ -1,0 +1,19 @@
+{
+  "_note": "SYNTHETIC ILLUSTRATIVE EXAMPLE ONLY — NOT A REAL CHALLENGE CASE OR PREPARED ANSWER.",
+  "case_id": "example-synthetic-001",
+  "title": "Synthetic two-column catalysis paper parsing example",
+  "input_files": [
+    "/input/synthetic_paper.pdf"
+  ],
+  "output_contract": {
+    "required_fields": [
+      "case_id",
+      "status",
+      "answers",
+      "tables_extracted",
+      "sources",
+      "uncertainty",
+      "change_records"
+    ]
+  }
+}

@@ -1,135 +1,127 @@
 ---
-name: scientific-pdf-parser
-description: >
-  Structure-preserving, evidence-traceable scientific PDF parsing skill for
-  academic literature reading, extraction, verification, and Harbor benchmark
-  evaluation. Handles multi-column reading order, running header/footer
-  removal, section hierarchy, complex and cross-page tables, inline
-  super/subscripts, Greek/math symbols, numbered equations, footnotes,
-  references, and adaptive OCR fallback for scanned or garbled-font PDFs,
-  attaching exact page and block provenance to every extracted element.
+name: literature-doc-parser
+description: >-
+  Evidence-grounded scientific PDF and literature document parsing skill for
+  multi-column reading order reconstruction, complex/three-line table extraction,
+  section hierarchy recovery, formula/symbol preservation, scanned-PDF OCR/visual
+  verification, and page/block provenance auditing. Use whenever a task requires
+  reading, parsing, extracting, translating, verifying, or structuring information
+  from scientific PDFs or research documents under strict citation and
+  output-contract requirements.
 ---
 
-# Scientific PDF Parser (`scientific-pdf-parser`)
+# Scientific Literature Document Parsing Skill
 
-## 1. Purpose & Scope
+Parse real scientific PDFs into layout-ordered, structure-aware, page-and-block-grounded artifacts so every extracted claim, parameter, table cell, equation, or answer traces back to verifiable source evidence.
 
-Use this skill whenever an agent must read, parse, extract structured content from, verify facts in, or answer evidence-grounded questions about scientific or academic PDF documents — especially under the Bohrium Harbor runtime contract (`/input/case.json`, `task.md`, `/app/work`, `/app/output/result.json`).
+## Core Principles (Non-Negotiable)
 
-**Core guarantees (提得全 · 排得对 · 拆得清 · 核得回):**
-- **Complete extraction (提得全)**: Captures body text, titles, authors, abstracts, figure/table captions, footnotes, and references while isolating running headers, footers, and page numbers from body prose.
-- **Faithful reading order (排得对)**: Uses gutter-aware XY-cut column segmentation to separate full-width spanning bands (titles, abstracts, wide figures/tables) from multi-column regions without column bleeding or cross-column paragraph merging.
-- **Structured decomposition (拆得清)**: Reconstructs hierarchical sections, complex and cross-page continued tables (Markdown + structured cell grids), numbered equations, and character-geometry superscripts/subscripts/Greek symbols.
-- **Verifiable provenance (核得回)**: Every extracted block, table, caption, footnote, and equation carries a deterministic anchor (`block_id`, `pdf_page`, `printed_page`, `bbox`, `method`). Unreadable, encrypted, or low-confidence regions are explicitly flagged as `uncertain` or `unreadable` — never guessed.
+1. **Read actual files, never assume from labels**: Always inspect `/input/case.json`, `task.md`, and the actual PDF bytes/pages. Never guess or fill missing content from titles, abstracts, or prior knowledge.
+2. **Evidence-first grounding (`核得回`)**: Every non-trivial claim, parameter, or answer must cite exact provenance (`page` 1-based, `block_id` / `section` / `table_id` / `equation_id`, and verbatim `quote` or `bbox`).
+3. **Honest uncertainty (`不臆测补齐`)**: For unreadable glyphs, low-confidence OCR, encrypted files, unreported metrics, or conflicting statements across sections/tables, explicitly report `unreported` / `indeterminate` / `conflict` with location and reason.
+4. **Preserve layout and structure (`提得全、排得对、拆得清`)**: Never feed naive raw `pdftotext` output from multi-column papers directly into reasoning when column interleaving, header/footer pollution, or broken tables are present.
+5. **Budget awareness**: Keep total work well within the Harbor execution budget (64 model calls, 900s wall time). Run deterministic Python extraction scripts first, then inspect only targeted pages/crops visually when needed.
 
----
+## Skill Resource Discovery
 
-## 2. Harbor Runtime Contract & Directory Layout
-
-When running inside the Bohrium Harbor evaluation harness:
-- **Inputs**: Read `/input/case.json` and `task.md` (or the input directory specified by the task) first to identify `case_id`, target PDF path(s), exact questions/extraction tasks, and `output_contract`.
-- **Working directory**: Store intermediate parsed JSON, Markdown, rendered page previews, and logs under `/app/work/`.
-- **Final outputs**: Write final deliverables to `/app/output/`, **always** including `/app/output/result.json` that preserves `case_id` and every field required by `output_contract`.
-- **Visual previews**: If any page is scanned, has garbled fonts, or contains image-only tables/figures, render cropped or full-page PNG previews to `/app/output/previews/` so reviewers (or vision-capable agents) can verify them directly.
-- **No fabricated outputs**: Never substitute pre-written answers. Every value in `result.json` must come from running the parser and inspecting the actual input PDF(s).
-
----
-
-## 3. Standard Execution Workflow
-
-Follow these five steps in order for every case:
-
-### Step 1 — Inspect Task Boundaries & Input Contract
-1. Read `/input/case.json` and `task.md`.
-2. Record:
-   - `case_id`
-   - All input PDF file paths
-   - Required `output_contract` schema/fields
-   - Specific user questions, target sections, tables, equations, or verification criteria.
-3. Confirm all referenced PDF files exist and are readable. If a file is missing or corrupted, record `status: "failed_missing_input"` or `"failed_corrupted_pdf"` honestly in `result.json` and stop.
-
-### Step 2 — Run the Deterministic Scientific PDF Parser
-Execute `scripts/parse_paper.py` on each input PDF (located relative to this skill directory, e.g., `/skills/weekly-skill/scripts/parse_paper.py`):
+At runtime in Harbor, this skill is typically installed at `/skills/weekly-skill` (or alongside your skill root). Locate `SKILL_DIR` first:
 
 ```bash
-python3 /skills/weekly-skill/scripts/parse_paper.py \
-  --pdf "<path/to/paper.pdf>" \
-  --out-dir "/app/work/parsed_<doc_id>" \
-  --ocr-fallback auto \
-  --render-previews auto
+SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-/skills/weekly-skill/SKILL.md}")" 2>/dev/null && pwd)"
+[ -d /skills/weekly-skill/scripts ] && SKILL_DIR="/skills/weekly-skill"
 ```
 
-Key outputs generated in `--out-dir`:
-- `document.json`: Full structured parse containing:
-  - `metadata`: page count, encryption status, parser backend used, per-page quality diagnostics (`native_text`, `garbled_font`, `scanned_image`, `mixed_or_low_text`, `encrypted_or_error`), printed page labels.
-  - `front_matter`: title, authors/affiliations (when detected), abstract, keywords.
-  - `sections`: hierarchical section tree with heading level, numbering, page range, and ordered `block_ids`.
-  - `blocks`: reading-order text blocks with `block_id` (`p1_b001`), `pdf_page`, `printed_page`, `column_index`, `bbox`, `role` (`title`, `heading`, `paragraph`, `caption`, `footnote`, `equation`, `reference`), `text`, `rich_text` (preserving `^{...}` / `_{...}`), `method`, and `warnings`.
-  - `tables`: extracted tables with `table_id`, `pages` (including stitched cross-page continuations), `caption`, `headers`, `rows`, `markdown`, `bbox`, and `continuation_merged` flag.
-  - `equations`: numbered display equations with `eq_id`, `label`, `text`, `pdf_page`, `bbox`.
-  - `figures`: detected figure captions and page/bbox anchors.
-  - `headers_footers`: stripped running headers/footers kept separately for auditability.
-  - `uncertainties`: explicit list of garbled glyphs, low-confidence OCR pages, image-only tables, or unreadable spans.
-- `document.md`: Clean reading-order Markdown with inline provenance tags (`[p.3 | p3_b012]`) and rendered Markdown tables.
-- `previews/`: PNG renders of any scanned, garbled, or flagged pages (copy relevant previews to `/app/output/previews/` if needed for final review).
+All working files go under `/app/work/`; final deliverables go under `/app/output/` (including `/app/output/result.json`).
 
-### Step 3 — Inspect Diagnostics & Resolve Edge Cases
-Before answering or structuring final outputs, inspect `document.json -> metadata.page_diagnostics` and `uncertainties`:
-- **Encrypted PDF (`status == "blocked_encrypted"`)**: Do not guess content. Report the encryption status, exact file path, and manual takeover requirement in `result.json`.
-- **Garbled font / CID glyphs (`garbled_font`)**: Check if `--ocr-fallback auto` already ran OCR on that page. If OCR confidence is low or math symbols remain degraded, inspect the rendered PNG in `previews/` and explicitly mark affected spans in `uncertainties`.
-- **Scanned pages (`scanned_image`)**: Verify OCR output in `blocks` (`method: "ocr_fallback"`). Preserve OCR confidence warnings rather than silently "correcting" ambiguous technical terms or numbers.
-- **Image-only tables or complex multi-span tables**: Check `tables` against page text and rendered previews. If a table is embedded as a raster image and OCR cannot reliably recover cell boundaries, flag it as `image_only_table_requires_visual_check` with its page and bbox, and save the page PNG to `/app/output/previews/`.
-- **Cross-page tables**: Confirm stitched tables (`continuation_merged: true`) kept column alignment intact across page boundaries.
+---
 
-### Step 4 — Fulfill Task Requirements with Verifiable Evidence
-Using `document.json` and `document.md`:
-1. Answer every question or populate every required structured field in `output_contract`.
-2. Attach exact provenance to every key claim, extracted value, table, or equation:
-   - `pdf_page` (1-indexed physical page)
-   - `printed_page` (journal/paper page number if different)
-   - `block_id` / `table_id` / `eq_id`
-   - `quote` (short verbatim excerpt from the parsed PDF supporting the claim)
-3. Explicitly separate:
-   - **Verified findings** (backed by exact text/table/equation evidence)
-   - **Not reported in source** (`"not_reported"` — explicitly state that the paper does not report the value after checking relevant sections)
-   - **Uncertain / unreadable** (`"uncertain"` — e.g., low-DPI scan, garbled font, conflicting numbers across text vs. table, with both conflicting locations cited).
+## Standard 5-Stage Workflow
 
-### Step 5 — Validate `/app/output/result.json` Before Finishing
-Run the contract & provenance validator:
+### Stage 1 — Contract & Input Boundary Inspection
+1. Read `/input/case.json` and `/input/task.md` (or `task.md` in the input directory).
+2. Extract:
+   - `case_id` (must appear verbatim in `/app/output/result.json`)
+   - `output_contract` (every required field name, type, and format)
+   - Input PDF / document paths and specific questions or extraction targets
+3. See [references/output-contract.md](./references/output-contract.md) for contract mapping and status semantics.
+
+### Stage 2 — PDF Triage & Environment Probe
+Run `pdf_probe.py` before full extraction:
 
 ```bash
-python3 /skills/weekly-skill/scripts/validate_output.py \
-  --case "/input/case.json" \
-  --parsed "/app/work/parsed_<doc_id>/document.json" \
-  --result "/app/output/result.json"
+mkdir -p /app/work/parse /app/output
+python3 "$SKILL_DIR/scripts/pdf_probe.py" <input_pdf> --out /app/work/parse/probe.json
 ```
 
-Fix any schema, missing `case_id`, invalid page/block reference, or placeholder issues reported by `validate_output.py` before finishing.
+Inspect `probe.json`:
+- **`needs_password: true` or `valid_pdf_header: false`**: Stop extraction, record `status: "blocked"` or `"partial"` with exact error in `result.json`, and do not fabricate text.
+- **`estimated_columns >= 2` / `complex_hybrid`**: Multi-column X-Y cut and table extraction are required.
+- **`scanned_pages` or `garbled_pages` non-empty**: Plan targeted rendering/OCR in Stage 4.
 
----
+### Stage 3 — Layout-Ordered Text, Structure & Table Extraction
+Run `pdf_extract.py` to reconstruct multi-column reading order, strip repeating headers/footers, separate sections/captions/footnotes/equations/references, and extract tables:
 
-## 4. Output Status & Honesty Protocol
+```bash
+python3 "$SKILL_DIR/scripts/pdf_extract.py" <input_pdf> --out-dir /app/work/parse
+```
 
-Always set a truthful top-level `status` in `/app/output/result.json` (matching `output_contract` if it defines specific enum values):
-- `"success"`: All required elements extracted and verified with provenance.
-- `"partial"`: Core document parsed, but specific items are unreadable, low-confidence OCR, image-only tables, or missing in the source (enumerate each in `uncertainties` with manual takeover pointers).
-- `"unable_to_determine"`: Document parsed cleanly, but the requested information is not reported or is contradictory across sections (cite conflicting locations).
-- `"failed"` / `"blocked_encrypted"`: File missing, corrupted, or password-protected; state exact reason and what human input is needed.
+Outputs in `/app/work/parse/`:
+- `reading_order.md` — blocks in true reading order tagged with `[p{page}_b{idx}|col{col}|{role}|bbox=[...]]`
+- `document.json` — full structured tree (`sections`, `tables`, `captions`, `footnotes`, `equations`, `references`, `headers_footers`, `unextracted_regions`, `blocks`)
+- `tables.md` & `tables.json` — extracted tables in Markdown + HTML (`colspan`), with `continues_from`/`continued_on` cross-page links
 
-**Strict anti-hallucination rules:**
-1. Never invent missing numbers, table cells, formula symbols, or citations.
-2. Never merge running headers/footers into paragraphs.
-3. Never cite a page number or block ID that does not exist in `document.json`.
-4. Never present illustrative examples as real case outputs.
+Key rules when reading these outputs:
+- Check `unextracted_regions` in `document.json`: these mark encoding defects (`\ufffd`, `cid:`, PUA) or unparsed horizontal-rule tables. **Never guess `[UNREADABLE_DEFECT]` text**; inspect via Stage 4.
+- For complex merged headers, three-line tables, and cross-page continuations, consult [references/layout-and-tables.md](./references/layout-and-tables.md).
 
----
+### Stage 4 — Targeted Rendering, OCR & Visual Verification
+Only render pages that actually need visual/OCR inspection (`scanned_pages`, `garbled_pages`, dense equation blocks, or `unextracted_regions` from `document.json`):
 
-## 5. Dependencies & Environment Fallback Order
+```bash
+python3 "$SKILL_DIR/scripts/pdf_render_ocr.py" <input_pdf> \
+  --out-dir /app/work/ocr \
+  --pages 1,4-5 \
+  --dpi 250 \
+  --ocr auto
+```
 
-`scripts/parse_paper.py` uses only Python 3 standard library plus pre-installed scientific/PDF tools, automatically selecting the best available backend:
-1. **Primary layout & table engine**: `pdfplumber` (character-level coordinates, super/subscript geometry, lattice+stream table extraction)
-2. **Secondary / fallback text engines**: `pymupdf` (`fitz`), `pypdf`, or `pdftotext` CLI
-3. **PDF-to-image rendering (for scanned/garbled pages)**: `pypdfium2` or `pdftoppm` CLI
-4. **OCR engine (adaptive fallback)**: `pytesseract` or `tesseract` CLI (with `PIL` / `numpy` image preprocessing when available)
+For specific problematic table or formula bounding boxes (`page:x0,y0,x1,y1` from `document.json`):
 
-See `README.md` for full architecture details, `references/output_schema.json` for exact JSON schemas, and `examples/minimal_example.md` for a minimal invocation walkthrough.
+```bash
+python3 "$SKILL_DIR/scripts/pdf_render_ocr.py" <input_pdf> \
+  --out-dir /app/work/crops \
+  --crop "3:60,180,540,420" \
+  --dpi 300 \
+  --ocr auto
+```
+
+- Check `ocr_results.json` (`mean_confidence`, `ocr_engine_used`).
+- If `ocr_engine_used` is `null` or `mean_confidence < 75`, inspect the generated PNGs directly (or mark low-confidence spans explicitly in `uncertainty`).
+- See [references/formulas-and-ocr.md](./references/formulas-and-ocr.md) for handling subscripts/superscripts, Greek letters, and Symbol-font defects.
+
+### Stage 5 — Synthesize Answer, Audit Evidence & Write `/app/output/result.json`
+1. Answer every task question / populate every `output_contract` field strictly from verified blocks, tables, equations, or OCR/visual inspections.
+2. Attach structured provenance (`page`, `block_id` / `table_id` / `equation_id`, `quote`) and explicit `status`, `sources`, `uncertainty`, and `change_records` (or the exact schema requested by `output_contract`).
+3. If the task produces editable Office/slide/diagram outputs, render real PDF/PNG previews (e.g. via `soffice` + `pdftoppm`/`fitz`) and inspect them before finalizing.
+4. Run the evidence & contract auditor before finishing:
+
+```bash
+python3 "$SKILL_DIR/scripts/audit_result.py" \
+  --result /app/output/result.json \
+  --case /input/case.json \
+  --doc /app/work/parse/document.json \
+  --strict
+```
+
+Fix any `case_id` mismatch, missing `output_contract` fields, out-of-range page numbers, or mismatched `quote` citations, then re-run `audit_result.py`.
+
+## Exception Handling Quick Reference
+
+| Condition | Required Action |
+|---|---|
+| Encrypted or password-protected PDF | Do not bypass or guess; emit `status: "blocked"` with error details in `result.json`. |
+| Scanned PDF / no text layer | Render pages at 250–300 DPI via `pdf_render_ocr.py`, run OCR and/or visual inspection, record confidence. |
+| Garbled glyphs (`\ufffd`, `cid:`, PUA) | Keep `[UNREADABLE_DEFECT]`, crop bbox PNG at 300 DPI, verify visually or report unreadable span. |
+| Missing/unreported paper value | Explicitly state `"unreported"` / `null` + cite the searched sections/tables; never extrapolate. |
+| Conflict between text and table | Report both values with exact `(page, block_id/table_id, quote)` citations and flag the discrepancy. |
+| Missing optional Python package | Scripts auto-fallback (`fitz` -> `pdfplumber` -> `pdftotext`/`pypdf`/`pdfinfo`); see [references/troubleshooting.md](./references/troubleshooting.md). |

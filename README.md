@@ -16,11 +16,13 @@
 ├── SKILL.md                        # Agent 触发指令与 5 阶段标准工作流
 ├── README.md                       # 完整说明文档（依赖、调用、限制、异常与自查）
 ├── scripts/
+│   ├── run_pipeline.py             # 一键编排入口：自动发现输入、体检、提取、定向 OCR 与摘要生成
+│   ├── query_doc.py                # 低 Token 检索器：按关键词/页码/章节/表号返回带溯源坐标的片段
 │   ├── pdf_common.py               # 工具探测、字符规范化、编码缺陷检测与几何辅助
 │   ├── pdf_probe.py                # 环境能力探测 + PDF 加密/扫描/乱码/分栏体检
 │   ├── pdf_extract.py              # 多引擎版面顺序提取、章节/表格/公式/脚注/参考文献结构化
 │   ├── pdf_render_ocr.py           # 高 DPI 页面/区域裁剪渲染 + 图像预处理 + 可选 OCR
-│   └── audit_result.py             # output_contract 合规校验与原文引用核验器
+│   └── audit_result.py             # output_contract 合规校验与原文/OCR 引用核验器
 ├── references/
 │   ├── output-contract.md          # Harbor 运行契约与 result.json 结构规范
 │   ├── layout-and-tables.md        # 多栏阅读顺序、三线表与跨页续表处理规范
@@ -44,6 +46,15 @@
 ---
 
 ## 完整调用流程
+
+### 0. 一键全流程入口（推荐）
+```bash
+python3 scripts/run_pipeline.py --input-dir /input --work-dir /app/work
+```
+自动完成输入发现、PDF 体检、版面与表格提取、扫描/乱码页定向 OCR，并生成 `/app/work/case_brief.json` 与 `/app/work/parse/outline.md`。随后可用 `query_doc.py` 按需检索证据：
+```bash
+python3 scripts/query_doc.py --doc /app/work/parse/document.json --query "Catalyst"
+```
 
 ### 1. PDF 体检与能力探测
 ```bash

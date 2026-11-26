@@ -24,18 +24,47 @@ Parse real scientific PDFs into layout-ordered, structure-aware, page-and-block-
 
 ## Skill Resource Discovery
 
-At runtime in Harbor, this skill is typically installed at `/skills/weekly-skill` (or alongside your skill root). Locate `SKILL_DIR` first:
+At runtime in Harbor, this skill is typically installed at `/skills/weekly-skill` (or alongside your skill root). Locate `SKILL_DIR` in any POSIX `sh`/`bash` shell:
 
-```bash
-SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-/skills/weekly-skill/SKILL.md}")" 2>/dev/null && pwd)"
-[ -d /skills/weekly-skill/scripts ] && SKILL_DIR="/skills/weekly-skill"
+```sh
+SKILL_DIR="/skills/weekly-skill"
+for d in /skills/weekly-skill /app/submission .; do
+  if [ -d "$d/scripts" ]; then
+    SKILL_DIR="$d"
+    break
+  fi
+done
 ```
 
 All working files go under `/app/work/`; final deliverables go under `/app/output/` (including `/app/output/result.json`).
 
 ---
 
-## Standard 5-Stage Workflow
+## Fast-Start 1-Command Pipeline (Recommended First Step)
+
+Instead of manually chaining multiple scripts on turn 1, inspect `/input/case.json` + `/input/task.md` and run `run_pipeline.py` immediately:
+
+```sh
+mkdir -p /app/work /app/output
+python3 "$SKILL_DIR/scripts/run_pipeline.py" --input-dir /input --work-dir /app/work
+```
+
+This single command automatically:
+1. Discovers all PDFs and non-PDF materials under `/input/`.
+2. Probes encryption, page types (`native_text`, `complex_hybrid`, `scanned_or_image_only`, `garbled_encoding`), and column structure (`probe.json`).
+3. Reconstructs multi-column X-Y cut reading order, strips repeating headers/footers, classifies sections/captions/footnotes/equations/references, and extracts bordered, three-line, borderless, and cross-page continued tables (`document.json`, `reading_order.md`, `tables.md`, `outline.md`).
+4. Runs targeted 250 DPI rendering + OCR on scanned/garbled pages and unextracted defect/table crops (`ocr/ocr_results.json`).
+5. Writes `/app/work/case_brief.json` summarizing every input, contract field, and output path.
+
+Then read `/app/work/parse/outline.md` (or `/app/work/doc_*/outline.md`) first—**never dump a huge `document.json` into context**—and use `query_doc.py` to pull exact blocks/tables with provenance:
+
+```sh
+python3 "$SKILL_DIR/scripts/query_doc.py" --doc /app/work/parse/document.json --ocr /app/work/parse/ocr/ocr_results.json --query "<keyword_or_regex>"
+```
+
+---
+
+## Standard 5-Stage Workflow (Detailed Reference)
 
 ### Stage 1 — Contract & Input Boundary Inspection
 1. Read `/input/case.json` and `/input/task.md` (or `task.md` in the input directory).
@@ -103,17 +132,25 @@ python3 "$SKILL_DIR/scripts/pdf_render_ocr.py" <input_pdf> \
 1. Answer every task question / populate every `output_contract` field strictly from verified blocks, tables, equations, or OCR/visual inspections.
 2. Attach structured provenance (`page`, `block_id` / `table_id` / `equation_id`, `quote`) and explicit `status`, `sources`, `uncertainty`, and `change_records` (or the exact schema requested by `output_contract`).
 3. If the task produces editable Office/slide/diagram outputs, render real PDF/PNG previews (e.g. via `soffice` + `pdftoppm`/`fitz`) and inspect them before finalizing.
-4. Run the evidence & contract auditor before finishing:
+4. Run the evidence & contract auditor before finishing (pass `--ocr` whenever scanned/OCR pages were cited):
 
-```bash
+```sh
 python3 "$SKILL_DIR/scripts/audit_result.py" \
   --result /app/output/result.json \
   --case /input/case.json \
   --doc /app/work/parse/document.json \
+  --ocr /app/work/parse/ocr/ocr_results.json \
   --strict
 ```
 
 Fix any `case_id` mismatch, missing `output_contract` fields, out-of-range page numbers, or mismatched `quote` citations, then re-run `audit_result.py`.
+
+## Task-Type Playbooks (QA / Translation / Structuring / Verification)
+
+- **Scientific QA & Claim Verification**: Use `query_doc.py` + `reading_order.md` + `tables.md`; never rely solely on abstract/introduction if Experimental/Results or a table gives exact conditions. When a question asks for an unreported metric, explicitly write `"unreported"`/`null` and cite the checked sections/tables.
+- **Faithful Academic Translation**: Translate from `reading_order.md` (never raw column-interleaved text) while preserving exact numbers, units, chemical formulas, `^{...}`/`_{...}` scripts, equation numbers, and section hierarchy.
+- **Structured Extraction (Tables/Equations/Metadata)**: Cross-check `tables.json` (`continues_from` / `continued_on`, HTML `colspan`) with `captions`; for `unextracted_regions`, inspect the cropped PNG before writing cell values.
+- **Material Conflict Detection**: If body prose and a table (or two papers in `/input`) disagree, report both values with separate `(page, block_id/table_id, quote)` provenance entries and set explicit conflict/uncertainty notes.
 
 ## Exception Handling Quick Reference
 

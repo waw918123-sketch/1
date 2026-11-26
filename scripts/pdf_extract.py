@@ -110,8 +110,13 @@ def _span_text_with_scripts(spans: List[Dict[str, Any]]) -> Tuple[str, str, bool
     return "".join(raw_parts), "".join(fmt_parts), has_unreadable
 
 
+def _is_cjk(ch: str) -> bool:
+    code = ord(ch)
+    return (0x4E00 <= code <= 0x9FFF) or (0x3400 <= code <= 0x4DBF) or (0x3000 <= code <= 0x303F) or (0xFF00 <= code <= 0xFFEF)
+
+
 def _join_block_lines(lines_info: List[Dict[str, Any]], use_formatted: bool = False) -> str:
-    """Join lines within a block, carefully healing end-of-line hyphenation."""
+    """Join lines within a block, healing end-of-line hyphenation and CJK breaks without spurious spaces."""
     key = "fmt_text" if use_formatted else "raw_text"
     out = ""
     for item in lines_info:
@@ -123,13 +128,15 @@ def _join_block_lines(lines_info: List[Dict[str, Any]], use_formatted: bool = Fa
             continue
         if out.endswith("-") and len(out) >= 2 and out[-2].isalpha() and seg[0].islower():
             out = out[:-1] + seg
+        elif _is_cjk(out[-1]) and _is_cjk(seg[0]):
+            out = out + seg
         else:
             out = out + " " + seg
     return out.strip()
 
 
 def _detect_column_gutters(blocks: List[Dict[str, Any]], content_x0: float, content_x1: float) -> List[float]:
-    """Detect vertical column gutters inside a horizontal band of blocks."""
+    """Detect vertical column gutters inside a horizontal band of blocks using 200-bin projection."""
     width = content_x1 - content_x0
     if len(blocks) < 2 or width <= 50.0:
         return []
@@ -137,17 +144,22 @@ def _detect_column_gutters(blocks: List[Dict[str, Any]], content_x0: float, cont
     if len(non_spanning) < 2:
         return []
 
-    bins = 100
+    bins = 200
     occ = [0] * bins
     for b in non_spanning:
-        b0 = max(0, min(bins - 1, int(((b["bbox"][0] - content_x0) / width) * bins)))
-        b1 = max(0, min(bins - 1, int(((b["bbox"][2] - content_x0) / width) * bins)))
+        x0 = float(b["bbox"][0])
+        x1 = float(b["bbox"][2])
+        if x1 - x0 > 6.0:
+            x0 += 1.0
+            x1 -= 1.0
+        b0 = max(0, min(bins - 1, int(((x0 - content_x0) / width) * bins)))
+        b1 = max(0, min(bins - 1, int(((x1 - content_x0) / width) * bins)))
         for idx in range(b0, b1 + 1):
             occ[idx] += 1
 
     gutters: List[float] = []
     run_start: Optional[int] = None
-    for i in range(15, 86):
+    for i in range(int(0.15 * bins), int(0.85 * bins) + 1):
         if occ[i] == 0:
             if run_start is None:
                 run_start = i
@@ -194,8 +206,9 @@ def _xy_cut_order(blocks: List[Dict[str, Any]], page_w: float) -> List[Dict[str,
         return []
     content_x0 = min(b["bbox"][0] for b in blocks)
     content_x1 = max(b["bbox"][2] for b in blocks)
-    content_w = max(page_w * 0.6, content_x1 - content_x0)
-    mid_x = 0.5 * (content_x0 + content_x1)
+    span_x = content_x1 - content_x0
+    content_w = max(page_w * 0.6, span_x)
+    mid_x = 0.5 * (content_x0 + content_x1) if span_x >= 0.65 * page_w else 0.5 * page_w
 
     spanning: List[Dict[str, Any]] = []
     regular: List[Dict[str, Any]] = []
@@ -225,28 +238,41 @@ def _xy_cut_order(blocks: List[Dict[str, Any]], page_w: float) -> List[Dict[str,
     return ordered
 
 
-def _rows_to_markdown(rows: List[List[str]]) -> str:
+def _clean_table_rows(rows: List[List[str]]) -> List[List[str]]:
+    """Normalize whitespace in table cells and drop completely empty columns/rows."""
     if not rows:
-        return ""
+        return []
     ncols = max(len(r) for r in rows)
-    norm_rows = [
-        [re.sub(r"\s+", " ", (c or "").replace("|", "\\|")).strip() for c in (r + [""] * (ncols - len(r)))]
+    norm = [
+        [re.sub(r"\s+", " ", (c or "")).strip() for c in (r + [""] * (ncols - len(r)))]
         for r in rows
     ]
-    header = "| " + " | ".join(norm_rows[0]) + " |"
+    norm = [r for r in norm if any(c for c in r)]
+    if not norm:
+        return []
+    keep_cols = [c_idx for c_idx in range(ncols) if any(r[c_idx] for r in norm)]
+    if not keep_cols:
+        return []
+    return [[r[c_idx] for c_idx in keep_cols] for r in norm]
+
+
+def _rows_to_markdown(rows: List[List[str]]) -> str:
+    clean = _clean_table_rows(rows)
+    if not clean:
+        return ""
+    ncols = len(clean[0])
+    escaped = [[c.replace("|", "\\|") for c in r] for r in clean]
+    header = "| " + " | ".join(escaped[0]) + " |"
     sep = "| " + " | ".join(["---"] * ncols) + " |"
-    body = ["| " + " | ".join(r) + " |" for r in norm_rows[1:]]
+    body = ["| " + " | ".join(r) + " |" for r in escaped[1:]]
     return "\n".join([header, sep, *body])
 
 
 def _rows_to_html(rows: List[List[str]], n_header_rows: int = 1) -> str:
-    if not rows:
+    norm_rows = _clean_table_rows(rows)
+    if not norm_rows:
         return "<table></table>"
-    ncols = max(len(r) for r in rows)
-    norm_rows = [
-        [re.sub(r"\s+", " ", (c or "")).strip() for c in (r + [""] * (ncols - len(r)))]
-        for r in rows
-    ]
+    ncols = len(norm_rows[0])
 
     # Simple colspan inference when header cell is followed by empty cells
     def _escape(s: str) -> str:
@@ -296,34 +322,54 @@ def _extract_tables_pdfplumber(pdf_path: Path, pages: List[int]) -> Dict[int, Li
             # Strategy 1: explicit/default lines
             for tbl in page.find_tables():
                 data = tbl.extract() or []
-                clean_rows = [[normalize_ligatures(c or "").strip() for c in row] for row in data]
-                if len(clean_rows) >= 2 and any(any(cell for cell in r) for r in clean_rows):
+                clean_rows = _clean_table_rows([[normalize_ligatures(c or "").strip() for c in row] for row in data])
+                if len(clean_rows) >= 2 and len(clean_rows[0]) >= 2:
                     candidates.append(("pdfplumber_lines", [round(x, 2) for x in tbl.bbox], clean_rows))
+
+            # Collect caption Y-positions to avoid merging separate tables across captions
+            caption_ys: List[float] = []
+            try:
+                page_txt_lines = (page.extract_text_lines() or [])
+                for tln in page_txt_lines:
+                    lt = normalize_ligatures(tln.get("text") or "").strip()
+                    if CAPTION_RE.match(lt):
+                        caption_ys.append(0.5 * (float(tln["top"]) + float(tln["bottom"])))
+            except Exception:
+                pass
 
             # Strategy 2: horizontal-rule bounded three-line tables (lines or thin filled rects)
             h_rules: List[Dict[str, float]] = []
             for ln in (page.lines or []):
                 if abs(ln["y0"] - ln["y1"]) < 2.0 and (ln["x1"] - ln["x0"]) > 0.25 * page.width:
-                    h_rules.append({
-                        "x0": float(ln["x0"]),
-                        "x1": float(ln["x1"]),
-                        "top": float(ln["top"]),
-                        "bottom": float(ln["bottom"]),
-                    })
+                    rule_box = [float(ln["x0"]), float(ln["top"]), float(ln["x1"]), float(ln["bottom"])]
+                    if not any(bbox_contains_center(c_bbox, rule_box, margin=3.0) for _, c_bbox, _ in candidates):
+                        h_rules.append({
+                            "x0": rule_box[0],
+                            "x1": rule_box[2],
+                            "top": rule_box[1],
+                            "bottom": rule_box[3],
+                        })
             for rc in (page.rects or []):
                 if abs(rc["bottom"] - rc["top"]) <= 3.0 and (rc["x1"] - rc["x0"]) > 0.25 * page.width:
-                    h_rules.append({
-                        "x0": float(rc["x0"]),
-                        "x1": float(rc["x1"]),
-                        "top": float(rc["top"]),
-                        "bottom": float(rc["bottom"]),
-                    })
+                    rule_box = [float(rc["x0"]), float(rc["top"]), float(rc["x1"]), float(rc["bottom"])]
+                    if not any(bbox_contains_center(c_bbox, rule_box, margin=3.0) for _, c_bbox, _ in candidates):
+                        h_rules.append({
+                            "x0": rule_box[0],
+                            "x1": rule_box[2],
+                            "top": rule_box[1],
+                            "bottom": rule_box[3],
+                        })
             h_rules.sort(key=lambda ln: ln["top"])
             if len(h_rules) >= 2:
                 groups: List[List[Dict[str, float]]] = [[h_rules[0]]]
                 for ln in h_rules[1:]:
-                    if ln["top"] - groups[-1][-1]["top"] <= 260.0:
-                        groups[-1].append(ln)
+                    prev_grp = groups[-1]
+                    prev_y = prev_grp[-1]["bottom"]
+                    gap = ln["top"] - prev_grp[-1]["top"]
+                    same_span = abs(ln["x0"] - prev_grp[0]["x0"]) <= 35.0 and abs(ln["x1"] - prev_grp[0]["x1"]) <= 35.0
+                    has_caption_between = any(prev_y < cy < ln["top"] for cy in caption_ys)
+                    if not has_caption_between and (gap <= 260.0 or (len(prev_grp) == 2 and same_span and gap <= 550.0)):
+                        prev_grp.append(ln)
                     else:
                         groups.append([ln])
                 for grp in groups:
@@ -336,7 +382,7 @@ def _extract_tables_pdfplumber(pdf_path: Path, pages: List[int]) -> Dict[int, Li
                     if gbot - gtop < 20.0:
                         continue
                     gbox = [round(gx0, 2), round(gtop, 2), round(gx1, 2), round(gbot, 2)]
-                    if any(bbox_iou(gbox, c_bbox) > 0.25 for _, c_bbox, _ in candidates):
+                    if any(bbox_iou(gbox, c_bbox) > 0.25 or bbox_contains_center(gbox, c_bbox, margin=2.0) for _, c_bbox, _ in candidates):
                         continue
                     cropped = page.crop((gx0, gtop, gx1, gbot))
                     tbls_txt = cropped.find_tables(table_settings={
@@ -348,13 +394,12 @@ def _extract_tables_pdfplumber(pdf_path: Path, pages: List[int]) -> Dict[int, Li
                     })
                     for tbl in tbls_txt:
                         data = tbl.extract() or []
-                        clean_rows = [[normalize_ligatures(c or "").strip() for c in row] for row in data]
-                        non_empty_rows = [r for r in clean_rows if any(c for c in r)]
-                        if len(non_empty_rows) >= 2 and len(non_empty_rows[0]) >= 2:
+                        clean_rows = _clean_table_rows([[normalize_ligatures(c or "").strip() for c in row] for row in data])
+                        if len(clean_rows) >= 2 and len(clean_rows[0]) >= 2:
                             candidates.append((
                                 "pdfplumber_threeline",
                                 gbox,
-                                non_empty_rows,
+                                clean_rows,
                             ))
 
             # Deduplicate overlapping tables
@@ -368,7 +413,7 @@ def _extract_tables_pdfplumber(pdf_path: Path, pages: List[int]) -> Dict[int, Li
 
 
 def _extract_tables_fitz(doc: Any, pages: List[int]) -> Dict[int, List[Dict[str, Any]]]:
-    """Extract tables via PyMuPDF find_tables when available."""
+    """Extract tables via PyMuPDF find_tables (with text-strategy fallback near table captions)."""
     by_page: Dict[int, List[Dict[str, Any]]] = {p: [] for p in pages}
     for pno in pages:
         page = doc[pno - 1]
@@ -378,14 +423,47 @@ def _extract_tables_fitz(doc: Any, pages: List[int]) -> Dict[int, List[Dict[str,
             finder = page.find_tables()
             for tbl in getattr(finder, "tables", []):
                 data = tbl.extract() or []
-                clean_rows = [[normalize_ligatures(c or "").strip() for c in row] for row in data]
-                clean_rows = [r for r in clean_rows if any(c for c in r)]
-                if len(clean_rows) >= 2:
+                clean_rows = _clean_table_rows([[normalize_ligatures(c or "").strip() for c in row] for row in data])
+                if len(clean_rows) >= 2 and len(clean_rows[0]) >= 2:
                     by_page[pno].append({
                         "method": "pymupdf_find_tables",
                         "bbox": [round(float(x), 2) for x in tbl.bbox],
                         "rows": clean_rows,
                     })
+        except Exception:
+            pass
+
+        # Caption-guided text-strategy fallback for borderless tables when no table overlaps near a Table caption
+        try:
+            tdict = page.get_text("dict")
+            pw, ph = float(page.rect.width), float(page.rect.height)
+            for blk in tdict.get("blocks", []):
+                if blk.get("type") != 0:
+                    continue
+                txt = normalize_ligatures(" ".join(
+                    sp.get("text", "") for ln in blk.get("lines", []) for sp in ln.get("spans", [])
+                )).strip()
+                if not re.match(r"^(?:Table|Tab\.?|表)\s*\d+", txt, re.I):
+                    continue
+                cb = blk["bbox"]
+                clip = [max(0.0, cb[0] - 20.0), max(0.0, cb[3] - 2.0), min(pw, max(cb[2] + 40.0, 0.92 * pw)), min(ph, cb[3] + 280.0)]
+                if any(bbox_iou(clip, t["bbox"]) > 0.15 or bbox_contains_center(clip, t["bbox"], margin=10.0) for t in by_page[pno]):
+                    continue
+                finder_txt = page.find_tables(clip=clip, strategy="text")
+                for tbl in getattr(finder_txt, "tables", []):
+                    data = tbl.extract() or []
+                    clean_rows = _clean_table_rows([[normalize_ligatures(c or "").strip() for c in row] for row in data])
+                    # Reject prose false positives: require >=2 cols, >=2 rows, and short average cell length
+                    if len(clean_rows) >= 2 and len(clean_rows[0]) >= 2:
+                        avg_len = sum(len(c) for r in clean_rows for c in r) / max(1, sum(len(r) for r in clean_rows))
+                        if avg_len <= 45.0:
+                            tb = [round(float(x), 2) for x in tbl.bbox]
+                            if not any(bbox_iou(tb, t["bbox"]) > 0.3 for t in by_page[pno]):
+                                by_page[pno].append({
+                                    "method": "pymupdf_caption_text",
+                                    "bbox": tb,
+                                    "rows": clean_rows,
+                                })
         except Exception:
             pass
     return by_page
@@ -960,10 +1038,48 @@ def _render_markdown_outputs(doc_data: Dict[str, Any]) -> Tuple[str, str]:
     return "\n".join(md_lines), "\n".join(tbl_lines)
 
 
+def _render_outline(doc_data: Dict[str, Any]) -> str:
+    """Generate compact outline.md index for low-token Agent navigation."""
+    lines = [
+        f"# Document Outline: {Path(doc_data['file']).name}",
+        f"- Status: `{doc_data.get('status')}` | Backend: `{doc_data.get('backend')}` | Pages: `{doc_data.get('page_count')}`",
+        f"- Counts: `{json.dumps(doc_data.get('counts', {}), ensure_ascii=False)}`",
+        "",
+        "## Sections",
+    ]
+    for s in doc_data.get("sections", []):
+        indent = "  " * max(0, int(s.get("level", 1)) - 1)
+        lines.append(f"{indent}- [{s['section_id']}] {s['title']} (p.{s['page_start']}, `{s['block_id']}`)")
+    if not doc_data.get("sections"):
+        lines.append("- (no structured headings detected; inspect reading_order.md directly)")
+
+    lines.extend(["", "## Tables"])
+    for t in doc_data.get("tables", []):
+        cap = t.get("caption") or "(no caption)"
+        cont = f" continues `{t['continues_from']}`" if t.get("continues_from") else ""
+        lines.append(f"- `{t['table_id']}` (p.{t['page']}, {t['num_rows']}x{t['num_cols']}, {t['method']}{cont}): {cap}")
+    if not doc_data.get("tables"):
+        lines.append("- (none)")
+
+    lines.extend(["", "## Equations"])
+    for eq in doc_data.get("equations", [])[:30]:
+        lbl = f"({eq['label']})" if eq.get("label") else eq["equation_id"]
+        lines.append(f"- `{eq['equation_id']}` {lbl} (p.{eq['page']}, `{eq['block_id']}`): {eq['script_text'][:120]}")
+    if not doc_data.get("equations"):
+        lines.append("- (none)")
+
+    lines.extend(["", "## Unextracted / Defect Regions (Require Visual/OCR Inspection)"])
+    for u in doc_data.get("unextracted_regions", []):
+        lines.append(f"- p.{u['page']} bbox=`{u.get('bbox')}` reason=`{u.get('reason')}` block=`{u.get('block_id')}`")
+    if not doc_data.get("unextracted_regions"):
+        lines.append("- (none)")
+    return "\n".join(lines) + "\n"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Extract layout-ordered text, sections, tables, equations, and anchors from a PDF.")
     parser.add_argument("pdf_path", help="Path to the input PDF file.")
-    parser.add_argument("--out-dir", required=True, help="Directory to write document.json, reading_order.md, tables.json, tables.md.")
+    parser.add_argument("--out-dir", required=True, help="Directory to write document.json, reading_order.md, tables.json, tables.md, outline.md.")
     parser.add_argument("--pages", default=None, help="1-based page specification, e.g. '1-3,5'.")
     args = parser.parse_args()
 
@@ -991,6 +1107,7 @@ def main() -> int:
     reading_md, tables_md = _render_markdown_outputs(doc_data)
     (out_dir / "reading_order.md").write_text(reading_md, encoding="utf-8")
     (out_dir / "tables.md").write_text(tables_md, encoding="utf-8")
+    (out_dir / "outline.md").write_text(_render_outline(doc_data), encoding="utf-8")
 
     summary = {
         "status": doc_data.get("status"),

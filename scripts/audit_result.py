@@ -13,8 +13,12 @@ from pdf_common import normalize_for_match
 
 
 def _collect_required_fields(case_data: Dict[str, Any]) -> List[str]:
-    """Extract expected top-level output fields from case.json's output_contract."""
-    contract = case_data.get("output_contract")
+    """Extract expected top-level output fields from case.json's output_contract/output_schema."""
+    contract = (
+        case_data.get("output_contract")
+        or case_data.get("output_schema")
+        or case_data.get("expected_output")
+    )
     fields: List[str] = []
     if isinstance(contract, dict):
         if isinstance(contract.get("required_fields"), list):
@@ -63,7 +67,12 @@ def _walk_evidence_items(obj: Any, path: str = "$") -> List[Dict[str, Any]]:
     return found
 
 
-def audit(result_path: Path, case_path: Path | None, doc_path: Path | None) -> Dict[str, Any]:
+def audit(
+    result_path: Path,
+    case_path: Path | None,
+    doc_path: Path | None,
+    ocr_path: Path | None = None,
+) -> Dict[str, Any]:
     errors: List[str] = []
     warnings: List[str] = []
     evidence_checks: List[Dict[str, Any]] = []
@@ -84,12 +93,13 @@ def audit(result_path: Path, case_path: Path | None, doc_path: Path | None) -> D
             elif result[field] is None or result[field] == "":
                 warnings.append(f"required field {field!r} is empty/null (ensure uncertainty is documented if unreported)")
 
-    # Evidence provenance check against document.json
+    # Evidence provenance check against document.json (+ optional ocr_results.json)
+    page_count = 0
+    page_texts: Dict[int, str] = {}
+    block_map: Dict[str, Dict[str, Any]] = {}
     if doc_path and doc_path.exists():
         doc_data = json.loads(doc_path.read_text(encoding="utf-8"))
         page_count = int(doc_data.get("page_count") or 0)
-        page_texts: Dict[int, str] = {}
-        block_map: Dict[str, Dict[str, Any]] = {}
         for blk in doc_data.get("blocks", []):
             p = int(blk["page"])
             page_texts[p] = page_texts.get(p, "") + "\n" + blk.get("raw_text", "") + "\n" + blk.get("text", "")
@@ -99,6 +109,15 @@ def audit(result_path: Path, case_path: Path | None, doc_path: Path | None) -> D
             tbl_flat = " ".join(" ".join(r) for r in tbl.get("rows", []))
             page_texts[p] = page_texts.get(p, "") + "\n" + tbl_flat
 
+    if ocr_path and ocr_path.exists():
+        ocr_data = json.loads(ocr_path.read_text(encoding="utf-8"))
+        for item in ocr_data.get("rendered", []):
+            p = item.get("page")
+            ocr_txt = (item.get("ocr") or {}).get("text") or ""
+            if isinstance(p, int) and ocr_txt.strip():
+                page_texts[p] = page_texts.get(p, "") + "\n" + ocr_txt
+
+    if page_texts or page_count > 0:
         norm_page_texts = {p: normalize_for_match(t) for p, t in page_texts.items()}
 
         for ev in _walk_evidence_items(result):
@@ -156,6 +175,7 @@ def main() -> int:
     parser.add_argument("--result", required=True, help="Path to result.json.")
     parser.add_argument("--case", default=None, help="Optional path to /input/case.json.")
     parser.add_argument("--doc", default=None, help="Optional path to extracted document.json.")
+    parser.add_argument("--ocr", default=None, help="Optional path to ocr_results.json.")
     parser.add_argument("--strict", action="store_true", help="Exit with code 1 if any errors are found.")
     args = parser.parse_args()
 
@@ -164,7 +184,12 @@ def main() -> int:
         print(json.dumps({"passed": False, "errors": [f"result.json not found: {res_path}"]}), file=sys.stderr)
         return 2
 
-    report = audit(res_path, Path(args.case) if args.case else None, Path(args.doc) if args.doc else None)
+    report = audit(
+        res_path,
+        Path(args.case) if args.case else None,
+        Path(args.doc) if args.doc else None,
+        Path(args.ocr) if args.ocr else None,
+    )
     print(json.dumps(report, ensure_ascii=False, indent=2))
     if args.strict and not report["passed"]:
         return 1

@@ -104,6 +104,116 @@ def _discover_case_paths(obj: Any, base_dir: Path) -> List[Path]:
     return found
 
 
+def _collect_contract_keys(contract: Any) -> List[str]:
+    """Safely extract expected top-level field names from output_contract/output_schema."""
+    fields: List[str] = []
+    if isinstance(contract, dict):
+        if isinstance(contract.get("required_fields"), list):
+            fields.extend(str(f) for f in contract["required_fields"])
+        elif isinstance(contract.get("fields"), list):
+            for item in contract["fields"]:
+                if isinstance(item, str):
+                    fields.append(item)
+                elif isinstance(item, dict) and item.get("name"):
+                    fields.append(str(item["name"]))
+        elif isinstance(contract.get("properties"), dict):
+            req = contract.get("required")
+            if isinstance(req, list):
+                fields.extend(str(f) for f in req)
+            else:
+                fields.extend(str(k) for k in contract["properties"].keys())
+        elif isinstance(contract.get("result_schema"), dict) and isinstance(contract["result_schema"].get("required"), list):
+            fields.extend(str(f) for f in contract["result_schema"]["required"])
+    elif isinstance(contract, list):
+        for item in contract:
+            if isinstance(item, str):
+                fields.append(item)
+            elif isinstance(item, dict) and item.get("name"):
+                fields.append(str(item["name"]))
+    return list(dict.fromkeys(fields))
+
+
+def _build_initial_result(
+    case_data: Dict[str, Any],
+    docs_summary: List[Dict[str, Any]],
+    other_files: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Write a deterministic non-empty baseline result.json upfront (value-order persistence)."""
+    contract = case_data.get("output_contract") or case_data.get("output_schema") or case_data.get("expected_output")
+    req_fields = _collect_contract_keys(contract)
+
+    primary_doc: Dict[str, Any] = {}
+    all_blocked = bool(docs_summary) and all(d.get("status") == "blocked" for d in docs_summary)
+    for d in docs_summary:
+        dp = d.get("document_json_path")
+        if dp and Path(dp).exists():
+            try:
+                primary_doc = json.loads(Path(dp).read_text(encoding="utf-8"))
+                break
+            except Exception:
+                pass
+
+    sources: List[Dict[str, Any]] = []
+    uncertainty: List[str] = []
+    for d in docs_summary:
+        if d.get("status") == "blocked":
+            uncertainty.append(f"Blocked input PDF {Path(d['pdf']).name}: needs_password={d.get('needs_password')}, valid_header={d.get('valid_pdf_header')}")
+        elif d.get("page_numbering_discrepancy"):
+            uncertainty.append(f"Printed vs physical page numbering discrepancy in {Path(d['pdf']).name}.")
+    if primary_doc:
+        for reg in primary_doc.get("unextracted_regions", [])[:8]:
+            uncertainty.append(f"Unextracted/defect region p.{reg.get('page')} ({reg.get('reason')}) bbox={reg.get('bbox')}")
+        for b in primary_doc.get("blocks", [])[:3]:
+            sources.append({
+                "page": b["page"],
+                "block_id": b["block_id"],
+                "quote": b["raw_text"][:240],
+            })
+
+    res: Dict[str, Any] = {
+        "case_id": case_data.get("case_id"),
+        "status": "blocked" if all_blocked else "partial",
+        "sources": sources,
+        "uncertainty": "; ".join(uncertainty) if uncertainty else "Initial deterministic extraction completed; verify task answers against sources.",
+        "change_records": [
+            {
+                "stage": "init_deterministic_extraction",
+                "detail": f"Populated baseline from {len(docs_summary)} PDF(s) and {len(other_files)} non-PDF input(s).",
+            }
+        ],
+    }
+
+    # Deterministically pre-fill structural fields requested by contract (never let weak model transcribe tables/blocks manually)
+    if primary_doc:
+        det_map = {
+            "metadata": primary_doc.get("metadata"),
+            "sections": primary_doc.get("sections"),
+            "tables": primary_doc.get("tables"),
+            "merged_tables": primary_doc.get("merged_tables"),
+            "figures": primary_doc.get("figures"),
+            "equations": primary_doc.get("equations"),
+            "captions": primary_doc.get("captions"),
+            "references": primary_doc.get("references"),
+            "blocks": primary_doc.get("blocks"),
+            "page_label_map": primary_doc.get("page_label_map"),
+        }
+        for k, v in det_map.items():
+            if k in req_fields and v is not None:
+                res[k] = v
+        if "pages" in req_fields:
+            by_p: Dict[int, List[str]] = {}
+            for b in primary_doc.get("blocks", []):
+                by_p.setdefault(int(b["page"]), []).append(b.get("text") or b.get("raw_text") or "")
+            res["pages"] = [{"page": p, "text": "\n".join(lines)} for p, lines in sorted(by_p.items())]
+        if "full_text" in req_fields:
+            res["full_text"] = "\n\n".join((b.get("text") or b.get("raw_text") or "") for b in primary_doc.get("blocks", []))
+
+    for f in req_fields:
+        if f not in res:
+            res[f] = None
+    return res
+
+
 def _run_py(script: str, args: List[str]) -> Dict[str, Any]:
     proc = subprocess.run(
         [sys.executable, "-B", str(SCRIPTS_DIR / script), *args],
@@ -129,8 +239,9 @@ def main() -> int:
     parser.add_argument("--input-dir", default="/input", help="Input directory containing case.json, task.md, and PDFs.")
     parser.add_argument("--work-dir", default="/app/work", help="Working output directory.")
     parser.add_argument("--pdf", action="append", default=[], help="Optional explicit PDF path(s).")
-    parser.add_argument("--max-ocr-pages", type=int, default=12, help="Cap automatic full-page OCR renders per PDF.")
-    parser.add_argument("--max-crops", type=int, default=8, help="Cap automatic defect/table crop renders per PDF.")
+    parser.add_argument("--max-ocr-pages", type=int, default=4, help="Cap automatic full-page OCR renders per PDF.")
+    parser.add_argument("--max-crops", type=int, default=4, help="Cap automatic defect/table crop renders per PDF.")
+    parser.add_argument("--init-result", default=None, help="Optional path to immediately write non-empty deterministic baseline result.json.")
     args = parser.parse_args()
 
     input_dir = Path(args.input_dir)
@@ -267,9 +378,28 @@ def main() -> int:
         "other_input_files": other_files,
         "documents": docs_summary,
     }
+    if args.init_result:
+        init_path = Path(args.init_result)
+        init_path.parent.mkdir(parents=True, exist_ok=True)
+        init_res = _build_initial_result(case_data, docs_summary, other_files)
+        init_path.write_text(json.dumps(init_res, ensure_ascii=False, indent=2), encoding="utf-8")
+        brief["initial_result_path"] = str(init_path)
+
     brief_path = work_dir / "case_brief.json"
-    brief_path.write_text(json.dumps(brief, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(json.dumps(brief, ensure_ascii=False, indent=2))
+    brief_txt = json.dumps(brief, ensure_ascii=False, indent=2)
+    brief_path.write_text(brief_txt, encoding="utf-8")
+    if len(brief_txt) > 24000:
+        compact = dict(brief)
+        compact["other_input_files"] = [
+            {k: v for k, v in o.items() if k != "preview"}
+            for o in other_files
+        ]
+        compact["hint"] = f"Compact stdout shown (<=24KB); full brief saved at {brief_path}"
+        brief_txt = json.dumps(compact, ensure_ascii=False, indent=2)
+        if len(brief_txt) > 24000:
+            compact["documents"] = [{k: v for k, v in d.items() if k != "metadata"} for d in docs_summary]
+            brief_txt = json.dumps(compact, ensure_ascii=False, indent=2)
+    print(brief_txt[:24000])
     return 0
 
 

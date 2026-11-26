@@ -78,96 +78,53 @@ python3 "$SKILL_DIR/scripts/query_doc.py" --doc /app/work/parse/document.json --
 ### Stage 2 — PDF Triage & Environment Probe
 Run `pdf_probe.py` before full extraction:
 
-```bash
+```sh
 mkdir -p /app/work/parse /app/output
-python3 "$SKILL_DIR/scripts/pdf_probe.py" <input_pdf> --out /app/work/parse/probe.json
+python3 "$SKILL_DIR/scripts/run_pipeline.py" --input-dir /input --work-dir /app/work --init-result /app/output/result.json
 ```
 
-Inspect `probe.json`:
-- **`needs_password: true` or `valid_pdf_header: false`**: Stop extraction, record `status: "blocked"` or `"partial"` with exact error in `result.json`, and do not fabricate text.
-- **`estimated_columns >= 2` / `complex_hybrid`**: Multi-column X-Y cut and table extraction are required.
-- **`scanned_pages` or `garbled_pages` non-empty**: Plan targeted rendering/OCR in Stage 4.
+This single call:
+1. Discovers `/input` PDFs, `case.json`-referenced files, and non-PDF attachments (`.docx`/`.pptx`/`.xlsx`/text), saving `case_brief.json` (`<=24 KB` stdout).
+2. Writes a non-empty deterministic baseline `/app/output/result.json` upfront (locking `case_id`, extracted `tables`, `metadata`, `sections`) so partial progress is safe under `64`-request / `900s` budgets.
+3. Inspect `case_brief.json`: if `needs_password: true` or `valid_pdf_header: false`, emit `status: "blocked"` and do not fabricate text.
 
-### Stage 3 — Layout-Ordered Text, Structure & Table Extraction
-Run `pdf_extract.py` to reconstruct multi-column reading order, strip repeating headers/footers, separate sections/captions/footnotes/equations/references, and extract tables:
-
-```bash
-python3 "$SKILL_DIR/scripts/pdf_extract.py" <input_pdf> --out-dir /app/work/parse
-```
-
-Outputs in `/app/work/parse/`:
-- `outline.md` — compact map of extracted `metadata` (title/authors/abstract/keywords), `sections`, `tables`, `merged_tables`, `figures`, `equations`, `page_label_map`, and `unextracted_regions`
-- `reading_order.md` — blocks in true reading order tagged with `[p{page}_b{idx}|col{col}|{role}|cont->...|bbox=[...]]` (`|cont->...` flags mid-sentence continuations across column/page breaks)
-- `document.json` — full structured tree (`metadata`, `page_label_map`, `page_numbering_discrepancy`, `sections`, `tables`, `merged_tables`, `figures`, `captions`, `footnotes`, `equations`, `references`, `headers_footers`, `unextracted_regions`, `blocks`)
-- `tables.md` & `tables.json` — extracted tables in Markdown + HTML (`colspan`), with `continues_from`/`continued_on` links and unified `merged_tables` views
-
-Use `query_doc.py` for low-token targeted lookup (supports `--pages 1-3,5`, `--query`, `--table tbl_1`, `--figures`, `--equations`, `--metadata`, `--ocr`):
+### Stage 3 — Targeted Navigation & Low-Budget Lookup
+Read compact `/app/work/parse/outline.md` first (`metadata`, `sections`, `tables` with hierarchical `headers`, `merged_tables`, `figures`, `equations`, `page_label_map`, and `unextracted_regions`), then inspect ONLY needed evidence with `query_doc.py` (never dump giant `document.json` into context):
 
 ```sh
 python3 "$SKILL_DIR/scripts/query_doc.py" --doc /app/work/parse/document.json --pages 1-3 --query "<term>" --figures --equations
+python3 "$SKILL_DIR/scripts/query_doc.py" --doc /app/work/parse/document.json --table tbl_1
 ```
 
-Key rules when reading these outputs:
-- Check `unextracted_regions` in `document.json`: these mark encoding defects (`\ufffd`, `cid:`, PUA), unparsed horizontal-rule tables, or image-based tables (`image_based_table_near_caption`). **Never guess `[UNREADABLE_DEFECT]` or image-table cells**; crop at 300 DPI and inspect via Stage 4.
-- If `page_numbering_discrepancy: true`, always cite both 1-based physical PDF `page` and printed label (`page_label_map`).
-- For complex merged headers, three-line tables, and cross-page continuations, consult [references/layout-and-tables.md](./references/layout-and-tables.md).
+Key extraction rules:
+- Multi-row headers (`header_rows >= 2`) use `headers` paths (e.g. `"True Relationship / Yes"`) and `html` `colspan`; captions embedded inside table grids are separated automatically.
+- Paragraphs or captions ending mid-sentence across breaks carry `continues_across_break` (`|cont->...` in `reading_order.md`).
+- If `page_numbering_discrepancy: true`, cite both 1-based physical PDF `page` and printed label (`page_label_map`).
+- Consult [references/layout-and-tables.md](./references/layout-and-tables.md) for complex merged headers and continuations.
 
-### Stage 4 — Targeted Rendering, OCR & Visual Verification
-Only render pages that actually need visual/OCR inspection (`scanned_pages`, `garbled_pages`, dense equation blocks, or `unextracted_regions` from `document.json`):
+### Stage 4 — Targeted Crop/OCR Verification (Only When Needed)
+Only inspect `unextracted_regions` (`encoding_defects_detected` / `image_based_table_near_caption`) or scanned pages (`--crop page:x0,y0,x1,y1` at 300 DPI):
 
-```bash
-python3 "$SKILL_DIR/scripts/pdf_render_ocr.py" <input_pdf> \
-  --out-dir /app/work/ocr \
-  --pages 1,4-5 \
-  --dpi 250 \
-  --ocr auto
+```sh
+python3 "$SKILL_DIR/scripts/pdf_render_ocr.py" <input_pdf> --out-dir /app/work/crops --crop "3:60,180,540,420" --dpi 300 --ocr auto
 ```
 
-For specific problematic table or formula bounding boxes (`page:x0,y0,x1,y1` from `document.json`):
+- Check `ocr_results.json` (`mean_confidence`); if `ocr_engine_used` is `null` or `mean_confidence < 75`, verify cropped PNGs visually or mark uncertainty explicitly. See [references/formulas-and-ocr.md](./references/formulas-and-ocr.md).
 
-```bash
-python3 "$SKILL_DIR/scripts/pdf_render_ocr.py" <input_pdf> \
-  --out-dir /app/work/crops \
-  --crop "3:60,180,540,420" \
-  --dpi 300 \
-  --ocr auto
-```
-
-- Check `ocr_results.json` (`mean_confidence`, `ocr_engine_used`).
-- If `ocr_engine_used` is `null` or `mean_confidence < 75`, inspect the generated PNGs directly (or mark low-confidence spans explicitly in `uncertainty`).
-- See [references/formulas-and-ocr.md](./references/formulas-and-ocr.md) for handling subscripts/superscripts, Greek letters, and Symbol-font defects.
-
-### Stage 5 — Synthesize Answer, Audit Evidence & Write `/app/output/result.json`
-1. Answer every task question / populate every `output_contract` field strictly from verified blocks, tables, equations, or OCR/visual inspections.
-2. Attach structured provenance (`page`, `block_id` / `table_id` / `equation_id`, `quote`) and explicit `status`, `sources`, `uncertainty`, and `change_records` (or the exact schema requested by `output_contract`).
-3. If the task produces editable Office/slide/diagram outputs, render real PDF/PNG previews (e.g. via `soffice` + `pdftoppm`/`fitz`) and inspect them before finalizing.
-4. Run the evidence & contract auditor before finishing (pass `--ocr` whenever scanned/OCR pages were cited):
+### Stage 5 — Write Compact Patch, Bind Provenance & Strict Audit
+Do NOT manually re-transcribe deterministic `tables`/`sections`/`metadata` already written into `/app/output/result.json`. Write a small `/app/work/patch.json` containing only task answers (`status`, analytical fields, `(page, block_id/table_id, row_label, col_header, value, quote)` provenance, `uncertainty`, `change_records`), then merge and validate in one command:
 
 ```sh
 python3 "$SKILL_DIR/scripts/audit_result.py" \
   --result /app/output/result.json \
+  --merge /app/work/patch.json \
   --case /input/case.json \
   --doc /app/work/parse/document.json \
   --ocr /app/work/parse/ocr/ocr_results.json \
   --strict
 ```
 
-Fix any `case_id` mismatch, missing `output_contract` fields, out-of-range page numbers, or mismatched `quote` citations, then re-run `audit_result.py`.
-
-## Task-Type Playbooks (QA / Translation / Structuring / Verification)
-
-- **Scientific QA & Claim Verification**: Use `query_doc.py` + `reading_order.md` + `tables.md`; never rely solely on abstract/introduction if Experimental/Results or a table gives exact conditions. When a question asks for an unreported metric, explicitly write `"unreported"`/`null` and cite the checked sections/tables.
-- **Faithful Academic Translation**: Translate from `reading_order.md` (never raw column-interleaved text) while preserving exact numbers, units, chemical formulas, `^{...}`/`_{...}` scripts, equation numbers, and section hierarchy.
-- **Structured Extraction (Tables/Equations/Metadata)**: Cross-check `tables.json` (`continues_from` / `continued_on`, HTML `colspan`) with `captions`; for `unextracted_regions`, inspect the cropped PNG before writing cell values.
-- **Material Conflict Detection**: If body prose and a table (or two papers in `/input`) disagree, report both values with separate `(page, block_id/table_id, quote)` provenance entries and set explicit conflict/uncertainty notes.
-
-## Exception Handling Quick Reference
-
-| Condition | Required Action |
-|---|---|
-| Encrypted or password-protected PDF | Do not bypass or guess; emit `status: "blocked"` with error details in `result.json`. |
-| Scanned PDF / no text layer | Render pages at 250–300 DPI via `pdf_render_ocr.py`, run OCR and/or visual inspection, record confidence. |
-| Garbled glyphs (`\ufffd`, `cid:`, PUA) | Keep `[UNREADABLE_DEFECT]`, crop bbox PNG at 300 DPI, verify visually or report unreadable span. |
-| Missing/unreported paper value | Explicitly state `"unreported"` / `null` + cite the searched sections/tables; never extrapolate. |
-| Conflict between text and table | Report both values with exact `(page, block_id/table_id, quote)` citations and flag the discrepancy. |
-| Missing optional Python package | Scripts auto-fallback (`fitz` -> `pdfplumber` -> `pdftotext`/`pypdf`/`pdfinfo`); see [references/troubleshooting.md](./references/troubleshooting.md). |
+## Task-Type & Exception Discipline (Zero Fabrication)
+- **Strict Grounding**: When citing a table number (`value`), include `table_id` + `row_label` + `col_header` + shortest sufficient `quote` so `audit_result.py` verifies exact row/col binding (preventing adjacent-column swaps).
+- **Unreported & Conflicts**: If a metric is absent (or supplementary material missing), set `"unreported"`/`null` and cite checked sections; if text and table (or two papers) disagree, preserve both with separate `(page, block_id/table_id, quote)` entries.
+- **Fallbacks**: See [references/troubleshooting.md](./references/troubleshooting.md) (`fitz` -> `pdfplumber` -> `pypdfium2` -> `pdftotext`/`pypdf`/`pdfinfo`).

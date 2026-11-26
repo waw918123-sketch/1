@@ -36,9 +36,40 @@ from pdf_common import (
 )
 
 CAPTION_RE = re.compile(
-    r"^(?:(?:Supplementary|Extended\s+Data)\s+)?(?:Figure|Fig\.?|Table|Tab\.?|Scheme|Algorithm|Listing|附图|附表|图|表)\s*[A-Za-z]?\d+[A-Za-z0-9.\-]*(?:[:.\s]|$)",
+    r"^(?:(?:Supplementary|Extended\s+Data)\s+)?(?:Figure|Fig\.?|Table|Tab\.?|Scheme|Algorithm|Listing|附图|附表|图|表)\s*[A-Za-z]?\d+(?:[.\-]\d+)*[A-Za-z]?(?=\s*(?:[:：.|—–\-]|\(|（|\s|$))",
     re.I,
 )
+_CAPTION_CONT_RE = re.compile(r"^\s*(?:\((?:continued|cont\.?|cont'd)\)|（续）|\(续\))\s*", re.I)
+_CAPTION_PROSE_VERB_RE = re.compile(
+    r"^\s*(?:is|are|was|were|has|have|had|contains?|shows?|demonstrates?|illustrates?|presents?|summarizes?|compares?|lists?|depicts?|plots?|gives?|reports?|provides?|indicates?|suggests?|reveals?|highlights?|describes?|displays?|summarises?|can|may|will|also|表明|显示|给出|展示|说明|列出|总结|揭示)\b",
+    re.I,
+)
+
+
+def _is_caption_text(txt: str) -> bool:
+    """Distinguish true figure/table captions ('Fig. 4 | ...', 'Table 1.') from body prose ('Figure 4a contains...')."""
+    st = txt.strip()
+    m = CAPTION_RE.match(st)
+    if not m:
+        return False
+    rest = st[m.end():]
+    if not rest.strip():
+        return True
+    cm = _CAPTION_CONT_RE.match(rest)
+    if cm:
+        rest = rest[cm.end():]
+        if not rest.strip():
+            return True
+    first_non_sp = rest.lstrip()
+    if not first_non_sp:
+        return True
+    if first_non_sp[0] in (".", ":", "：", "|", "—", "–", "-"):
+        return True
+    if _CAPTION_PROSE_VERB_RE.match(first_non_sp):
+        return False
+    if re.match(r"^(?:附图|附表|图|表)", st) and _is_cjk(first_non_sp[0]):
+        return len(st) <= 180
+    return len(first_non_sp.split()) <= 5 and not st.endswith((".", "。"))
 HEADING_RE = re.compile(
     r"^(?:"
     r"Abstract|Introduction|Background|Related\s+Work|Methods?|Methodology|Materials?\s+and\s+Methods?|"
@@ -95,16 +126,30 @@ def _span_text_with_scripts(spans: List[Dict[str, Any]]) -> Tuple[str, str, bool
     """Reconstruct raw line text and script-annotated text (^{...}, _{...})."""
     if not spans:
         return "", "", False
-    sizes = [float(s.get("size", 0.0)) for s in spans if s.get("text", "").strip()]
-    med_fs = statistics.median(sizes) if sizes else 10.0
+    char_sizes: List[float] = []
+    non_flag_sizes: List[float] = []
+    for s in spans:
+        st = s.get("text", "").strip()
+        if not st:
+            continue
+        sfs = float(s.get("size", 0.0))
+        if sfs <= 0:
+            continue
+        rep = min(len(st), 6)
+        char_sizes.extend([sfs] * rep)
+        if not (int(s.get("flags", 0)) & 1):
+            non_flag_sizes.extend([sfs] * rep)
+    ref_pool = sorted(non_flag_sizes or char_sizes)
+    # Use 85th-percentile character-weighted non-superscript font size so dense superscripts (e.g. axis ticks 10^0..10^4) don't lower baseline fs
+    med_fs = ref_pool[min(len(ref_pool) - 1, int(0.85 * len(ref_pool)))] if ref_pool else 10.0
 
-    # Weighted baseline from spans near median font size
+    # Weighted baseline from spans near baseline font size
     base_ys = []
     for s in spans:
         if not s.get("text", "").strip():
             continue
         fs = float(s.get("size", med_fs))
-        if fs >= 0.85 * med_fs:
+        if fs >= 0.88 * med_fs and not (int(s.get("flags", 0)) & 1):
             bb = s.get("bbox", [0, 0, 0, 0])
             base_ys.append(0.5 * (bb[1] + bb[3]))
     med_cy = statistics.median(base_ys) if base_ys else 0.0
@@ -381,7 +426,7 @@ def _coalesce_same_line_fragments(blocks: List[Dict[str, Any]]) -> List[Dict[str
         if cur.get("column") != nxt.get("column") or cur.get("page") != nxt.get("page"):
             merged.append(dict(nxt))
             continue
-        if PURE_EQ_LABEL_RE.match(nxt["raw_text"]) or CAPTION_RE.match(cur["raw_text"]) or CAPTION_RE.match(nxt["raw_text"]):
+        if PURE_EQ_LABEL_RE.match(nxt["raw_text"]) or _is_caption_text(cur["raw_text"]) or _is_caption_text(nxt["raw_text"]):
             merged.append(dict(nxt))
             continue
         cb, nb = cur["bbox"], nxt["bbox"]
@@ -442,16 +487,94 @@ def _clean_table_rows(rows: List[List[str]]) -> List[List[str]]:
     return [[r[c_idx] for c_idx in keep_cols] for r in norm]
 
 
-def _rows_to_markdown(rows: List[List[str]]) -> str:
+def _rows_to_markdown(rows: List[List[str]], n_header_rows: int = 1, headers: Optional[List[str]] = None) -> str:
     clean = _clean_table_rows(rows)
     if not clean:
         return ""
     ncols = len(clean[0])
-    escaped = [[c.replace("|", "\\|") for c in r] for r in clean]
-    header = "| " + " | ".join(escaped[0]) + " |"
+    hdr_row = headers if (headers and len(headers) == ncols) else clean[0]
+    escaped_hdr = [str(c).replace("|", "\\|") for c in hdr_row]
+    escaped_body = [[c.replace("|", "\\|") for c in r] for r in clean[max(1, n_header_rows):]]
+    header = "| " + " | ".join(escaped_hdr) + " |"
     sep = "| " + " | ".join(["---"] * ncols) + " |"
-    body = ["| " + " | ".join(r) + " |" for r in escaped[1:]]
+    body = ["| " + " | ".join(r) + " |" for r in escaped_body]
     return "\n".join([header, sep, *body])
+
+
+def _structure_table_rows(raw_rows: List[List[str]], header_rows_hint: Optional[int] = None) -> Dict[str, Any]:
+    """Strip embedded caption/DOI-note rows and infer single or two-level grouped column headers."""
+    rows = _clean_table_rows(raw_rows)
+    embedded_caption: Optional[str] = None
+    note: Optional[str] = None
+
+    # Guard against table title swallowed as first row inside table grid (Slide 11 Trap A)
+    if len(rows) >= 3:
+        non_empty_r0 = [c for c in rows[0] if c]
+        if len(non_empty_r0) == 1 and _is_caption_text(non_empty_r0[0]):
+            embedded_caption = non_empty_r0[0]
+            rows = _clean_table_rows(rows[1:])
+
+    # Guard against trailing DOI / Note row
+    if len(rows) >= 3:
+        non_empty_last = [c for c in rows[-1] if c]
+        if len(non_empty_last) == 1 and re.match(r"^(?:DOI|Note|Notes|Source|Sources|Abbreviations?|注)[:.\s]", non_empty_last[0], re.I):
+            note = non_empty_last[0]
+            rows = _clean_table_rows(rows[:-1])
+
+    if not rows:
+        return {"rows": [], "header_rows": 1, "headers": [], "embedded_caption": embedded_caption, "note": note}
+
+    ncols = len(rows[0])
+    n_hdr = 1
+    if header_rows_hint is not None and header_rows_hint >= 2 and len(rows) > header_rows_hint:
+        n_hdr = min(3, header_rows_hint)
+    elif len(rows) >= 3:
+        r0, r1 = rows[0], rows[1]
+        has_span_blank = any(r0[c] == "" and r1[c] != "" for c in range(ncols))
+        num_like_r1 = sum(1 for c in r1 if re.match(r"^-?\d+(?:\.\d+)?%?$", c))
+        if has_span_blank and num_like_r1 <= max(0, ncols // 2):
+            n_hdr = 2
+
+    if n_hdr == 1:
+        headers = list(rows[0])
+    else:
+        # Propagate group headers only across trailing empty cells to build hierarchical names
+        r0 = rows[0]
+        expanded_top = list(r0)
+        group_counts: Counter[int] = Counter()
+        group_owner: List[int] = [-1] * ncols
+        last_non_empty_idx = -1
+        for c in range(ncols):
+            if r0[c]:
+                last_non_empty_idx = c
+                group_owner[c] = c
+                group_counts[c] += 1
+            elif last_non_empty_idx >= 0 and rows[1][c]:
+                expanded_top[c] = r0[last_non_empty_idx]
+                group_owner[c] = last_non_empty_idx
+                group_counts[last_non_empty_idx] += 1
+
+        headers = []
+        for c in range(ncols):
+            sub_parts = [rows[hr][c] for hr in range(1, min(n_hdr, len(rows))) if rows[hr][c]]
+            sub = " ".join(sub_parts).strip()
+            top = expanded_top[c].strip()
+            owner = group_owner[c]
+            if top and sub:
+                if owner >= 0 and group_counts[owner] >= 2:
+                    headers.append(f"{top} / {sub}")
+                else:
+                    headers.append(f"{top} {sub}")
+            else:
+                headers.append(sub or top)
+
+    return {
+        "rows": rows,
+        "header_rows": n_hdr,
+        "headers": headers,
+        "embedded_caption": embedded_caption,
+        "note": note,
+    }
 
 
 def _rows_to_html(rows: List[List[str]], n_header_rows: int = 1) -> str:
@@ -503,14 +626,14 @@ def _extract_tables_pdfplumber(pdf_path: Path, pages: List[int]) -> Dict[int, Li
             if pno < 1 or pno > len(pdf.pages):
                 continue
             page = pdf.pages[pno - 1]
-            candidates: List[Tuple[str, List[float], List[List[str]]]] = []
+            candidates: List[Tuple[str, List[float], List[List[str]], Optional[int]]] = []
 
             # Strategy 1: explicit/default lines
             for tbl in page.find_tables():
                 data = tbl.extract() or []
                 clean_rows = _clean_table_rows([[normalize_ligatures(c or "").strip() for c in row] for row in data])
                 if len(clean_rows) >= 2 and len(clean_rows[0]) >= 2:
-                    candidates.append(("pdfplumber_lines", [round(x, 2) for x in tbl.bbox], clean_rows))
+                    candidates.append(("pdfplumber_lines", [round(x, 2) for x in tbl.bbox], clean_rows, None))
 
             # Collect caption bounding boxes to avoid merging separate tables across captions
             caption_boxes: List[Tuple[float, float, float]] = []
@@ -518,7 +641,7 @@ def _extract_tables_pdfplumber(pdf_path: Path, pages: List[int]) -> Dict[int, Li
                 page_txt_lines = (page.extract_text_lines() or [])
                 for tln in page_txt_lines:
                     lt = normalize_ligatures(tln.get("text") or "").strip()
-                    if CAPTION_RE.match(lt):
+                    if _is_caption_text(lt):
                         caption_boxes.append((
                             float(tln["x0"]),
                             float(tln["x1"]),
@@ -532,7 +655,7 @@ def _extract_tables_pdfplumber(pdf_path: Path, pages: List[int]) -> Dict[int, Li
             for ln in (page.lines or []):
                 if abs(ln["y0"] - ln["y1"]) < 2.0 and (ln["x1"] - ln["x0"]) > 0.25 * page.width:
                     rule_box = [float(ln["x0"]), float(ln["top"]), float(ln["x1"]), float(ln["bottom"])]
-                    if not any(bbox_contains_center(c_bbox, rule_box, margin=3.0) for _, c_bbox, _ in candidates):
+                    if not any(bbox_contains_center(c_bbox, rule_box, margin=3.0) for _, c_bbox, _, _ in candidates):
                         h_rules.append({
                             "x0": rule_box[0],
                             "x1": rule_box[2],
@@ -542,7 +665,7 @@ def _extract_tables_pdfplumber(pdf_path: Path, pages: List[int]) -> Dict[int, Li
             for rc in (page.rects or []):
                 if abs(rc["bottom"] - rc["top"]) <= 3.0 and (rc["x1"] - rc["x0"]) > 0.25 * page.width:
                     rule_box = [float(rc["x0"]), float(rc["top"]), float(rc["x1"]), float(rc["bottom"])]
-                    if not any(bbox_contains_center(c_bbox, rule_box, margin=3.0) for _, c_bbox, _ in candidates):
+                    if not any(bbox_contains_center(c_bbox, rule_box, margin=3.0) for _, c_bbox, _, _ in candidates):
                         h_rules.append({
                             "x0": rule_box[0],
                             "x1": rule_box[2],
@@ -603,8 +726,17 @@ def _extract_tables_pdfplumber(pdf_path: Path, pages: List[int]) -> Dict[int, Li
                     if gbot - gtop < 20.0:
                         continue
                     gbox = [round(gx0, 2), round(gtop, 2), round(gx1, 2), round(gbot, 2)]
-                    if any(bbox_iou(gbox, c_bbox) > 0.25 or bbox_contains_center(gbox, c_bbox, margin=2.0) for _, c_bbox, _ in candidates):
+                    if any(bbox_iou(gbox, c_bbox) > 0.25 or bbox_contains_center(gbox, c_bbox, margin=2.0) for _, c_bbox, _, _ in candidates):
                         continue
+                    hdr_hint: Optional[int] = None
+                    if len(grp) >= 3 and (grp[1]["top"] - grp[0]["bottom"]) >= 16.0:
+                        try:
+                            hdr_crop = page.crop((gx0, max(0.0, grp[0]["bottom"] - 1.0), gx1, grp[1]["top"] + 1.0))
+                            hdr_lines = hdr_crop.extract_text_lines() or []
+                            if len(hdr_lines) >= 2:
+                                hdr_hint = len(hdr_lines)
+                        except Exception:
+                            pass
                     cropped = page.crop((gx0, gtop, gx1, gbot))
                     tbls_txt = cropped.find_tables(table_settings={
                         "vertical_strategy": "text",
@@ -621,14 +753,15 @@ def _extract_tables_pdfplumber(pdf_path: Path, pages: List[int]) -> Dict[int, Li
                                 "pdfplumber_threeline",
                                 gbox,
                                 clean_rows,
+                                hdr_hint,
                             ))
 
             # Deduplicate overlapping tables (including tight inner bounds inside wide rule tables)
             kept: List[Dict[str, Any]] = []
-            for method, bbox, rows in candidates:
+            for method, bbox, rows, h_hint in candidates:
                 if any(bbox_iou(bbox, k["bbox"]) > 0.40 or _bbox_containment(bbox, k["bbox"]) >= 0.65 for k in kept):
                     continue
-                kept.append({"method": method, "bbox": bbox, "rows": rows})
+                kept.append({"method": method, "bbox": bbox, "rows": rows, "header_rows_hint": h_hint})
             by_page[pno] = kept
     return by_page
 
@@ -667,7 +800,7 @@ def _extract_tables_fitz(doc: Any, pages: List[int]) -> Dict[int, List[Dict[str,
                 txt = normalize_ligatures(" ".join(
                     sp.get("text", "") for ln in blk.get("lines", []) for sp in ln.get("spans", [])
                 )).strip()
-                if not re.match(r"^(?:Table|Tab\.?|表)\s*\d+", txt, re.I):
+                if not (_is_caption_text(txt) and re.match(r"^(?:(?:Supplementary|Extended\s+Data)\s+)?(?:Table|Tab\.?|附表|表)", txt, re.I)):
                     continue
                 cb = blk["bbox"]
                 clip = [max(0.0, cb[0] - 20.0), max(0.0, cb[3] - 2.0), min(pw, max(cb[2] + 40.0, 0.92 * pw)), min(ph, cb[3] + 280.0)]
@@ -934,23 +1067,30 @@ def _build_merged_tables(structured_tables: List[Dict[str, Any]]) -> List[Dict[s
                 break
             chain.append(nxt)
             cur = nxt
+        n_hdr = int(chain[0].get("header_rows") or 1)
         rows = list(chain[0]["rows"])
         for part in chain[1:]:
             part_rows = part["rows"]
-            if part_rows and rows and part_rows[0] == rows[0]:
+            part_hdr = int(part.get("header_rows") or 1)
+            if part_rows and len(rows) >= n_hdr and len(part_rows) >= part_hdr and part_rows[:part_hdr] == rows[:part_hdr]:
+                rows.extend(part_rows[part_hdr:])
+            elif part_rows and rows and part_rows[0] == rows[0]:
                 rows.extend(part_rows[1:])
             else:
                 rows.extend(part_rows)
+        headers = chain[0].get("headers") or (rows[0] if rows else [])
         merged.append({
             "merged_table_id": f"merged_{t['table_id']}",
             "source_table_ids": [c["table_id"] for c in chain],
             "pages": [c["page"] for c in chain],
             "caption": t.get("caption"),
+            "header_rows": n_hdr,
+            "headers": headers,
             "num_rows": len(rows),
             "num_cols": max((len(r) for r in rows), default=0),
             "rows": rows,
-            "markdown": _rows_to_markdown(rows),
-            "html": _rows_to_html(rows),
+            "markdown": _rows_to_markdown(rows, n_header_rows=n_hdr, headers=headers),
+            "html": _rows_to_html(rows, n_header_rows=n_hdr),
         })
     return merged
 
@@ -1004,6 +1144,7 @@ def _extract_with_fitz(pdf_path: Path, page_spec: Optional[str], caps: Dict[str,
                 et_chars = sum(len(c) for r in et["rows"] for c in r)
                 if len(ft["rows"]) > len(et["rows"]) or (len(ft["rows"]) == len(et["rows"]) and ft_chars > et_chars):
                     tables_by_page[pno][idx0] = ft
+        tables_by_page[pno].sort(key=lambda t: (round(t["bbox"][1], 1), round(t["bbox"][0], 1)))
 
     # First pass: collect raw blocks per page + font size stats + candidate headers/footers
     raw_pages: List[Dict[str, Any]] = []
@@ -1045,7 +1186,27 @@ def _extract_with_fitz(pdf_path: Path, page_spec: Optional[str], caps: Dict[str,
                 block_sizes: List[float] = []
                 bold_chars = 0
                 total_chars = 0
+                # Coalesce horizontal same-row line splits (e.g. inline base + superscript placed in separate Td lines)
+                merged_row_lines: List[Dict[str, Any]] = []
                 for ln in grp_lines:
+                    lbb = ln.get("bbox")
+                    lspans = list(ln.get("spans", []))
+                    if not lbb or not lspans:
+                        continue
+                    if merged_row_lines:
+                        prev = merged_row_lines[-1]
+                        pbb = prev["bbox"]
+                        y_ov = min(pbb[3], lbb[3]) - max(pbb[1], lbb[1])
+                        dx = lbb[0] - pbb[2]
+                        if y_ov >= 0.40 * min(max(1.0, pbb[3] - pbb[1]), max(1.0, lbb[3] - lbb[1])) and -2.0 <= dx <= 40.0:
+                            new_spans = list(prev["spans"])
+                            if dx >= 3.5:
+                                new_spans.append({"text": " ", "size": new_spans[-1].get("size", 10.0), "flags": 0, "bbox": [pbb[2], pbb[1], lbb[0], pbb[3]], "font": ""})
+                            new_spans.extend(lspans)
+                            merged_row_lines[-1] = {"bbox": merge_bbox([pbb, list(lbb)]), "spans": new_spans}
+                            continue
+                    merged_row_lines.append({"bbox": list(lbb), "spans": lspans})
+                for ln in merged_row_lines:
                     spans = ln.get("spans", [])
                     raw_ln, fmt_ln, has_unr = _span_text_with_scripts(spans)
                     if not raw_ln.strip():
@@ -1195,7 +1356,7 @@ def _extract_with_fitz(pdf_path: Path, page_spec: Optional[str], caps: Dict[str,
 
             # Role classification
             role = "paragraph"
-            if CAPTION_RE.match(txt):
+            if _is_caption_text(txt):
                 role = "caption"
                 cap_counter += 1
                 cap_kind = "table_caption" if re.match(r"^(?:(?:Supplementary|Extended\s+Data)\s+)?(?:Table|Tab\.?|附表|表)", txt, re.I) else "figure_caption"
@@ -1323,19 +1484,31 @@ def _extract_with_fitz(pdf_path: Path, page_spec: Optional[str], caps: Dict[str,
                     best_dist = dist
                     matched_cap = c
 
+            tbl_struct = _structure_table_rows(t["rows"], t.get("header_rows_hint"))
+            rows = tbl_struct["rows"]
+            if not rows:
+                tbl_counter -= 1
+                continue
+            n_hdr = tbl_struct["header_rows"]
+            headers = tbl_struct["headers"]
+            cap_text = (matched_cap["text"] if matched_cap else None) or tbl_struct.get("embedded_caption")
+
             ncols = max((len(r) for r in rows), default=0)
             entry: Dict[str, Any] = {
                 "table_id": tid,
                 "page": pno,
                 "bbox": tb,
                 "method": t["method"],
+                "header_rows": n_hdr,
+                "headers": headers,
                 "num_rows": len(rows),
                 "num_cols": ncols,
-                "caption": matched_cap["text"] if matched_cap else None,
+                "caption": cap_text,
                 "caption_block_id": matched_cap["block_id"] if matched_cap else None,
+                "note": tbl_struct.get("note"),
                 "rows": rows,
-                "markdown": _rows_to_markdown(rows),
-                "html": _rows_to_html(rows),
+                "markdown": _rows_to_markdown(rows, n_header_rows=n_hdr, headers=headers),
+                "html": _rows_to_html(rows, n_header_rows=n_hdr),
                 "continues_from": None,
                 "continued_on": None,
             }
@@ -1363,12 +1536,12 @@ def _extract_with_fitz(pdf_path: Path, page_spec: Optional[str], caps: Dict[str,
     metadata = _extract_paper_metadata(all_blocks, sections)
     page_label_map, page_numbering_discrepancy = _extract_printed_page_map(headers_footers, total_pages)
 
-    # Mark paragraphs continuing mid-sentence across column/page breaks
-    para_indices = [i for i, blk in enumerate(all_blocks) if blk.get("role") not in ("caption", "footnote")]
+    # Mark paragraphs and captions continuing mid-sentence across column/page breaks
+    para_indices = [i for i, blk in enumerate(all_blocks) if blk.get("role") != "footnote"]
     for pos, idx in enumerate(para_indices[:-1]):
         cur = all_blocks[idx]
         nxt = all_blocks[para_indices[pos + 1]]
-        if cur.get("role") != "paragraph" or nxt.get("role") != "paragraph":
+        if cur.get("role") not in ("paragraph", "caption") or cur.get("role") != nxt.get("role"):
             continue
         if cur["page"] == nxt["page"] and cur.get("column") == nxt.get("column"):
             continue
@@ -1531,7 +1704,7 @@ def _extract_with_pdftotext_xml(pdf_path: Path, page_spec: Optional[str], pdftot
         ordered = _xy_cut_order(p_blocks, pw)
         for b_idx, b in enumerate(ordered):
             b["block_id"] = f"p{pno}_b{b_idx + 1}"
-            b["role"] = "caption" if CAPTION_RE.match(b["raw_text"]) else "paragraph"
+            b["role"] = "caption" if _is_caption_text(b["raw_text"]) else "paragraph"
             all_blocks.append(b)
 
     return {
@@ -1578,7 +1751,7 @@ def _extract_with_pypdf(pdf_path: Path, page_spec: Optional[str]) -> Dict[str, A
         for b_idx, para in enumerate(paras):
             bid = f"p{pno}_b{b_idx + 1}"
             defects = detect_encoding_defects(para)
-            role = "caption" if CAPTION_RE.match(para) else ("heading" if HEADING_RE.match(para) else "paragraph")
+            role = "caption" if _is_caption_text(para) else ("heading" if HEADING_RE.match(para) else "paragraph")
             blk = {
                 "block_id": bid,
                 "page": pno,
@@ -1703,7 +1876,8 @@ def _render_outline(doc_data: Dict[str, Any]) -> str:
     for t in doc_data.get("tables", []):
         cap = t.get("caption") or "(no caption)"
         cont = f" continues `{t['continues_from']}`" if t.get("continues_from") else ""
-        lines.append(f"- `{t['table_id']}` (p.{t['page']}, {t['num_rows']}x{t['num_cols']}, {t['method']}{cont}): {cap}")
+        hdr_info = f", hdr_rows={t['header_rows']}" if (t.get("header_rows") or 1) >= 2 else ""
+        lines.append(f"- `{t['table_id']}` (p.{t['page']}, {t['num_rows']}x{t['num_cols']}, {t['method']}{hdr_info}{cont}): {cap}")
     for mt in doc_data.get("merged_tables", []):
         lines.append(f"- `{mt['merged_table_id']}` (merged pages {mt['pages']}, {mt['num_rows']}x{mt['num_cols']}, sources={mt['source_table_ids']})")
     if not doc_data.get("tables"):

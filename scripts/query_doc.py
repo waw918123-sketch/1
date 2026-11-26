@@ -146,7 +146,18 @@ def main() -> int:
         output["page_numbering_discrepancy"] = doc.get("page_numbering_discrepancy", False)
         output["counts"] = doc.get("counts")
 
-    print(json.dumps(output, ensure_ascii=False, indent=2))
+    # Budget-guard (Slide 7/21): keep single tool stdout bounded <= 24,000 chars for weak-model context
+    out_txt = json.dumps(output, ensure_ascii=False, indent=2)
+    while len(out_txt) > 24000 and len(output.get("block_hits", [])) > 1:
+        output["block_hits"].pop()
+        output["truncated"] = True
+        output["hint"] = "Output trimmed to <=24000 chars; narrow search with --pages, --section, or tighter --query."
+        out_txt = json.dumps(output, ensure_ascii=False, indent=2)
+    if len(out_txt) > 24000 and len(output.get("ocr_hits", [])) > 1:
+        output["ocr_hits"] = output["ocr_hits"][:1]
+        output["truncated"] = True
+        out_txt = json.dumps(output, ensure_ascii=False, indent=2)
+    print(out_txt)
     return 0
 
 

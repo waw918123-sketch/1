@@ -13,6 +13,8 @@ import zipfile
 from pathlib import Path
 from typing import Any, Dict, List
 
+sys.dont_write_bytecode = True
+
 SCRIPTS_DIR = Path(__file__).resolve().parent
 
 
@@ -31,7 +33,13 @@ def _inspect_non_pdf(path: Path, work_dir: Path) -> Dict[str, Any]:
                 xml_names = sorted(
                     n for n in zf.namelist()
                     if n.endswith(".xml") and (
-                        n.startswith("word/document") or n.startswith("ppt/slides/slide") or n.startswith("xl/sharedStrings")
+                        n.startswith("word/document")
+                        or n.startswith("word/footnotes")
+                        or n.startswith("word/header")
+                        or n.startswith("word/footer")
+                        or n.startswith("ppt/slides/slide")
+                        or n.startswith("xl/sharedStrings")
+                        or n.startswith("xl/worksheets/sheet")
                     )
                 )
                 for xname in xml_names[:20]:
@@ -53,6 +61,47 @@ def _inspect_non_pdf(path: Path, work_dir: Path) -> Dict[str, Any]:
     elif ext in (".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp"):
         info["kind"] = "image_asset"
     return info
+
+
+def _discover_case_paths(obj: Any, base_dir: Path) -> List[Path]:
+    """Recursively discover existing input file paths declared inside case.json."""
+    allowed_exts = {
+        ".pdf", ".txt", ".md", ".csv", ".tsv", ".json", ".yaml", ".yml",
+        ".docx", ".pptx", ".xlsx", ".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp",
+    }
+    found: List[Path] = []
+    seen: set[str] = set()
+
+    def _walk(val: Any) -> None:
+        if isinstance(val, str):
+            s = val.strip()
+            if not s or len(s) > 300 or "\n" in s:
+                return
+            p = Path(s)
+            if p.suffix.lower() not in allowed_exts:
+                return
+            cands = [p] if p.is_absolute() else [base_dir / p, base_dir.parent / p]
+            for cand in cands:
+                try:
+                    if cand.exists() and cand.is_file():
+                        r = str(cand.resolve())
+                        if r not in seen:
+                            seen.add(r)
+                            found.append(cand)
+                        break
+                except OSError:
+                    continue
+        elif isinstance(val, list):
+            for item in val:
+                _walk(item)
+        elif isinstance(val, dict):
+            for k, item in val.items():
+                if k in ("output_contract", "output_schema", "expected_output", "result_schema"):
+                    continue
+                _walk(item)
+
+    _walk(obj)
+    return found
 
 
 def _run_py(script: str, args: List[str]) -> Dict[str, Any]:
@@ -97,17 +146,33 @@ def main() -> int:
         except Exception as exc:
             case_data = {"parse_error": str(exc)}
 
+    declared_paths = _discover_case_paths(case_data, input_dir) if case_data else []
     pdfs: List[Path] = [Path(p) for p in args.pdf if Path(p).exists()]
-    if not pdfs and input_dir.exists():
-        pdfs = sorted(input_dir.rglob("*.pdf"))
+    if not pdfs:
+        seen_pdfs: set[str] = set()
+        cand_pdfs = (sorted(input_dir.rglob("*.pdf")) if input_dir.exists() else []) + [
+            p for p in declared_paths if p.suffix.lower() == ".pdf"
+        ]
+        for p in cand_pdfs:
+            rp = str(p.resolve())
+            if rp not in seen_pdfs:
+                seen_pdfs.add(rp)
+                pdfs.append(p)
 
     other_files = []
-    if input_dir.exists():
-        other_root = work_dir / "other_inputs"
-        for p in sorted(input_dir.rglob("*")):
-            if p.is_file() and p.suffix.lower() != ".pdf" and p.name not in ("case.json", "task.md"):
-                other_root.mkdir(parents=True, exist_ok=True)
-                other_files.append(_inspect_non_pdf(p, other_root))
+    seen_other: set[str] = set()
+    other_root = work_dir / "other_inputs"
+    cand_others = (
+        [p for p in sorted(input_dir.rglob("*")) if p.is_file() and p.suffix.lower() != ".pdf" and p.name not in ("case.json", "task.md")]
+        if input_dir.exists()
+        else []
+    ) + [p for p in declared_paths if p.suffix.lower() != ".pdf" and p.name not in ("case.json", "task.md")]
+    for p in cand_others:
+        rp = str(p.resolve())
+        if rp not in seen_other:
+            seen_other.add(rp)
+            other_root.mkdir(parents=True, exist_ok=True)
+            other_files.append(_inspect_non_pdf(p, other_root))
 
     docs_summary: List[Dict[str, Any]] = []
     for idx, pdf in enumerate(pdfs):
@@ -177,6 +242,7 @@ def main() -> int:
             "headers_footers_stripped": (ext_res.get("counts") or {}).get("headers_footers", 0),
             "tables_extracted": (ext_res.get("counts") or {}).get("tables", 0),
             "merged_cross_page_tables": (ext_res.get("counts") or {}).get("merged_tables", 0),
+            "figures_detected": (ext_res.get("counts") or {}).get("figures", 0),
             "equations_detected": (ext_res.get("counts") or {}).get("equations", 0),
             "unextracted_regions_flagged": (ext_res.get("counts") or {}).get("unextracted_regions", 0),
             "ocr_rendered_items": entry.get("ocr_rendered_count", 0),
@@ -184,10 +250,18 @@ def main() -> int:
         entry["status"] = "ok" if ext_res.get("status") == "ok" else "partial"
         docs_summary.append(entry)
 
+    task_preview = None
+    if task_path.exists():
+        try:
+            task_preview = task_path.read_text(encoding="utf-8", errors="replace")[:1000]
+        except Exception:
+            task_preview = None
+
     brief = {
         "case_id": case_data.get("case_id"),
         "has_case_json": case_path.exists(),
         "has_task_md": task_path.exists(),
+        "task_md_preview": task_preview,
         "output_contract": case_data.get("output_contract") or case_data.get("output_schema") or case_data.get("expected_output"),
         "pdf_count": len(pdfs),
         "other_input_files": other_files,

@@ -96,13 +96,19 @@ python3 "$SKILL_DIR/scripts/pdf_extract.py" <input_pdf> --out-dir /app/work/pars
 ```
 
 Outputs in `/app/work/parse/`:
-- `outline.md` — compact map of extracted `metadata` (title/authors/abstract/keywords), `sections`, `tables`, `merged_tables`, `equations`, `page_label_map`, and `unextracted_regions`
-- `reading_order.md` — blocks in true reading order tagged with `[p{page}_b{idx}|col{col}|{role}|bbox=[...]]`
-- `document.json` — full structured tree (`metadata`, `page_label_map`, `page_numbering_discrepancy`, `sections`, `tables`, `merged_tables`, `captions`, `footnotes`, `equations`, `references`, `headers_footers`, `unextracted_regions`, `blocks`)
+- `outline.md` — compact map of extracted `metadata` (title/authors/abstract/keywords), `sections`, `tables`, `merged_tables`, `figures`, `equations`, `page_label_map`, and `unextracted_regions`
+- `reading_order.md` — blocks in true reading order tagged with `[p{page}_b{idx}|col{col}|{role}|cont->...|bbox=[...]]` (`|cont->...` flags mid-sentence continuations across column/page breaks)
+- `document.json` — full structured tree (`metadata`, `page_label_map`, `page_numbering_discrepancy`, `sections`, `tables`, `merged_tables`, `figures`, `captions`, `footnotes`, `equations`, `references`, `headers_footers`, `unextracted_regions`, `blocks`)
 - `tables.md` & `tables.json` — extracted tables in Markdown + HTML (`colspan`), with `continues_from`/`continued_on` links and unified `merged_tables` views
 
+Use `query_doc.py` for low-token targeted lookup (supports `--pages 1-3,5`, `--query`, `--table tbl_1`, `--figures`, `--equations`, `--metadata`, `--ocr`):
+
+```sh
+python3 "$SKILL_DIR/scripts/query_doc.py" --doc /app/work/parse/document.json --pages 1-3 --query "<term>" --figures --equations
+```
+
 Key rules when reading these outputs:
-- Check `unextracted_regions` in `document.json`: these mark encoding defects (`\ufffd`, `cid:`, PUA) or unparsed horizontal-rule tables. **Never guess `[UNREADABLE_DEFECT]` text**; inspect via Stage 4.
+- Check `unextracted_regions` in `document.json`: these mark encoding defects (`\ufffd`, `cid:`, PUA), unparsed horizontal-rule tables, or image-based tables (`image_based_table_near_caption`). **Never guess `[UNREADABLE_DEFECT]` or image-table cells**; crop at 300 DPI and inspect via Stage 4.
 - If `page_numbering_discrepancy: true`, always cite both 1-based physical PDF `page` and printed label (`page_label_map`).
 - For complex merged headers, three-line tables, and cross-page continuations, consult [references/layout-and-tables.md](./references/layout-and-tables.md).
 

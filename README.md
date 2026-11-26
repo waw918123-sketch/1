@@ -95,7 +95,12 @@ python3 scripts/audit_result.py \
 
 ## 适用范围与已知限制
 
-- **适用场景**：单栏/双栏/多栏中英文科研论文 PDF、含三线表/有线表/跨页续表的实验文献、含上下标与希腊字母的方法学文本、扫描版或图文混合 PDF。
+- **适用场景**：单栏/双栏（含非对称分栏）/三栏中英文科研论文 PDF、并排单栏三线表/有线表/无框线表/跨页续表/图片型表格、含合并上下标与 Symbol 希腊字母的方法学文本、扫描版或图文混合多文件附件（`.docx`/`.xlsx`/`.pptx`）。
+- **核心增强能力**：
+  - 递归 X-Y 切分与跨栏同行碎片归并，杜绝跨栏混读、窄标题破坏分栏及行内上标错序；
+  - 水平规则分泳道（X-lane）聚类与包含率去重，避免双栏并排三线表误合并或内外框重复计数；
+  - 自动提取 `figures[]` 与图片型表格区域 `image_based_table_near_caption`，并标注跨栏/跨页未终结句断点（`continues_across_break`）；
+  - `pdf_render_ocr.py` 支持 `fitz -> pypdfium2 -> pdftoppm` 渲染降级链，`query_doc.py` 与 `audit_result.py` 支持 `--pages`/`--figures`/`--equations`/`--metadata` 及多锚点溯源校验。
 - **已知限制**：
   1. 若运行环境既无 `fitz` 也无 `pdftotext`（或 `pypdf`），仅能完成基础文件头/加密检查而无法重建几何版面。
   2. 极复杂手写体或重度公式嵌套图片在不具备 OCR/视觉模型复核时，脚本会标注 `unextracted_regions` 而不自动猜测公式语义。

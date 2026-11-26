@@ -10,6 +10,8 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict
 
+sys.dont_write_bytecode = True
+
 from pdf_common import discover_capabilities, import_pymupdf
 
 SCRIPTS_DIR = Path(__file__).resolve().parent

@@ -10,6 +10,8 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+sys.dont_write_bytecode = True
+
 from pdf_common import discover_capabilities, import_pymupdf, normalize_ligatures, parse_page_spec
 
 
@@ -121,12 +123,18 @@ def render_pages(
 
     use_fitz = bool(caps["python_modules"].get("pymupdf_fitz"))
     use_pdftoppm = bool(caps["cli_tools"].get("pdftoppm"))
+    try:
+        import pypdfium2 as pdfium  # type: ignore
+        has_pdfium = True
+    except Exception:
+        pdfium = None
+        has_pdfium = False
 
-    if not use_fitz and not use_pdftoppm:
+    if not use_fitz and not has_pdfium and not use_pdftoppm:
         return {
             "file": str(pdf_path),
             "status": "failed_missing_renderer",
-            "error": "Neither PyMuPDF (fitz) nor pdftoppm is available to render PDF pages.",
+            "error": "Neither PyMuPDF (fitz), pypdfium2, nor pdftoppm is available to render PDF pages.",
             "capabilities": caps,
         }
 
@@ -166,6 +174,48 @@ def render_pages(
                     "image_path": str(png_path),
                 })
         doc.close()
+    elif has_pdfium:
+        try:
+            pdf_doc = pdfium.PdfDocument(str(pdf_path))
+        except Exception as exc:
+            if "password" in str(exc).lower() or "encrypt" in str(exc).lower():
+                return {"file": str(pdf_path), "status": "encrypted_blocked", "rendered": []}
+            return {"file": str(pdf_path), "status": "failed_open_pdfium", "error": str(exc), "rendered": []}
+        total_pages = len(pdf_doc)
+        pages = parse_page_spec(page_spec, total_pages) if (page_spec or not crops) else []
+        crop_specs = [_parse_crop(c) for c in crops]
+        render_pages_needed = sorted(set(pages) | {p for p, _ in crop_specs if 1 <= p <= total_pages})
+        scale = dpi / 72.0
+        pil_cache: Dict[int, Any] = {}
+        for pno in render_pages_needed:
+            page = pdf_doc[pno - 1]
+            pil_img = page.render(scale=scale).to_pil()
+            pil_cache[pno] = pil_img
+            if pno in pages:
+                png_path = out_dir / f"page_{pno:03d}.png"
+                pil_img.save(png_path)
+                rendered.append({"kind": "page", "page": pno, "dpi": dpi, "image_path": str(png_path)})
+        for idx, (pno, coords) in enumerate(crop_specs):
+            im = pil_cache.get(pno)
+            if im is None:
+                continue
+            box = (
+                max(0, int(coords[0] * scale)),
+                max(0, int(coords[1] * scale)),
+                min(im.width, int(coords[2] * scale)),
+                min(im.height, int(coords[3] * scale)),
+            )
+            if box[2] > box[0] and box[3] > box[1]:
+                crop_path = out_dir / f"crop_{idx + 1:02d}_p{pno:03d}.png"
+                im.crop(box).save(crop_path)
+                rendered.append({
+                    "kind": "crop",
+                    "page": pno,
+                    "bbox": coords,
+                    "dpi": dpi,
+                    "image_path": str(crop_path),
+                })
+        pdf_doc.close()
     else:
         # pdftoppm fallback for whole pages (+ optional Pillow crops)
         if caps["cli_tools"].get("pdfinfo"):

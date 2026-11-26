@@ -11,6 +11,8 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List
 
+sys.dont_write_bytecode = True
+
 from pdf_common import detect_encoding_defects, discover_capabilities, import_pymupdf, normalize_ligatures
 
 

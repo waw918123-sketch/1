@@ -9,6 +9,8 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Set
 
+sys.dont_write_bytecode = True
+
 from pdf_common import normalize_for_match
 
 
@@ -57,14 +59,17 @@ def _collect_required_fields(case_data: Dict[str, Any]) -> List[str]:
 
 
 def _walk_evidence_items(obj: Any, path: str = "$") -> List[Dict[str, Any]]:
-    """Find dict objects that declare page/block_id/quote provenance."""
+    """Find dict objects that declare page/block_id/table_id/equation_id/quote provenance."""
     found: List[Dict[str, Any]] = []
     if isinstance(obj, dict):
         page_val = obj.get("page") if isinstance(obj.get("page"), int) else (obj.get("page_number") if isinstance(obj.get("page_number"), int) else obj.get("source_page"))
         has_page = isinstance(page_val, int)
         has_quote = any(k in obj and isinstance(obj[k], str) and obj[k].strip() for k in ("quote", "snippet", "excerpt", "evidence_text", "verbatim"))
         has_block = "block_id" in obj and isinstance(obj["block_id"], str)
-        if has_page or has_quote or has_block:
+        has_table = ("table_id" in obj and isinstance(obj["table_id"], str)) or ("merged_table_id" in obj and isinstance(obj["merged_table_id"], str))
+        has_eq = "equation_id" in obj and isinstance(obj["equation_id"], str)
+        has_fig = "figure_id" in obj and isinstance(obj["figure_id"], str)
+        if has_page or has_quote or has_block or has_table or has_eq or has_fig:
             found.append({"path": path, "item": obj})
         for k, v in obj.items():
             found.extend(_walk_evidence_items(v, f"{path}.{k}"))
@@ -104,6 +109,10 @@ def audit(
     page_count = 0
     page_texts: Dict[int, str] = {}
     block_map: Dict[str, Dict[str, Any]] = {}
+    table_map: Dict[str, Dict[str, Any]] = {}
+    merged_table_map: Dict[str, Dict[str, Any]] = {}
+    eq_map: Dict[str, Dict[str, Any]] = {}
+    fig_map: Dict[str, Dict[str, Any]] = {}
     if doc_path and doc_path.exists():
         doc_data = json.loads(doc_path.read_text(encoding="utf-8"))
         page_count = int(doc_data.get("page_count") or 0)
@@ -111,6 +120,17 @@ def audit(
             p = int(blk["page"])
             page_texts[p] = page_texts.get(p, "") + "\n" + blk.get("raw_text", "") + "\n" + blk.get("text", "")
             block_map[blk["block_id"]] = blk
+        for tbl in doc_data.get("tables", []):
+            p = int(tbl["page"])
+            tbl_flat = " ".join(" ".join(r) for r in tbl.get("rows", []))
+            page_texts[p] = page_texts.get(p, "") + "\n" + tbl_flat
+            table_map[tbl["table_id"]] = tbl
+        for mt in doc_data.get("merged_tables", []):
+            merged_table_map[mt["merged_table_id"]] = mt
+        for eq in doc_data.get("equations", []):
+            eq_map[eq["equation_id"]] = eq
+        for fg in doc_data.get("figures", []):
+            fig_map[fg["figure_id"]] = fg
         for tbl in doc_data.get("tables", []):
             p = int(tbl["page"])
             tbl_flat = " ".join(" ".join(r) for r in tbl.get("rows", []))
@@ -131,6 +151,10 @@ def audit(
             item = ev["item"]
             p = item.get("page") if isinstance(item.get("page"), int) else (item.get("page_number") if isinstance(item.get("page_number"), int) else item.get("source_page"))
             bid = item.get("block_id")
+            tid = item.get("table_id")
+            mtid = item.get("merged_table_id")
+            eid = item.get("equation_id")
+            fid = item.get("figure_id")
             quote = next((item[k] for k in ("quote", "snippet", "excerpt", "evidence_text", "verbatim") if isinstance(item.get(k), str) and item[k].strip()), None)
 
             status = "ok"
@@ -140,7 +164,7 @@ def audit(
                 notes.append(f"page {p} out of range [1, {page_count}]")
                 errors.append(f"{ev['path']}: page {p} out of range [1, {page_count}]")
 
-            if bid is not None:
+            if bid is not None and block_map:
                 if bid not in block_map:
                     status = "warning" if status == "ok" else status
                     notes.append(f"block_id {bid!r} not found in document.json")
@@ -149,6 +173,46 @@ def audit(
                     status = "error"
                     notes.append(f"block_id {bid!r} belongs to page {block_map[bid]['page']}, not {p}")
                     errors.append(f"{ev['path']}: block_id {bid!r} page mismatch")
+
+            if tid is not None and (table_map or page_count > 0):
+                if tid not in table_map:
+                    status = "warning" if status == "ok" else status
+                    notes.append(f"table_id {tid!r} not found in document.json")
+                    warnings.append(f"{ev['path']}: table_id {tid!r} not found in document.json")
+                elif p is not None and table_map[tid]["page"] != p:
+                    status = "error"
+                    notes.append(f"table_id {tid!r} belongs to page {table_map[tid]['page']}, not {p}")
+                    errors.append(f"{ev['path']}: table_id {tid!r} page mismatch")
+
+            if mtid is not None and (merged_table_map or page_count > 0):
+                if mtid not in merged_table_map:
+                    status = "warning" if status == "ok" else status
+                    notes.append(f"merged_table_id {mtid!r} not found in document.json")
+                    warnings.append(f"{ev['path']}: merged_table_id {mtid!r} not found in document.json")
+                elif p is not None and p not in merged_table_map[mtid].get("pages", []):
+                    status = "error"
+                    notes.append(f"merged_table_id {mtid!r} spans pages {merged_table_map[mtid].get('pages')}, not {p}")
+                    errors.append(f"{ev['path']}: merged_table_id {mtid!r} page mismatch")
+
+            if eid is not None and (eq_map or page_count > 0):
+                if eid not in eq_map:
+                    status = "warning" if status == "ok" else status
+                    notes.append(f"equation_id {eid!r} not found in document.json")
+                    warnings.append(f"{ev['path']}: equation_id {eid!r} not found in document.json")
+                elif p is not None and eq_map[eid]["page"] != p:
+                    status = "error"
+                    notes.append(f"equation_id {eid!r} belongs to page {eq_map[eid]['page']}, not {p}")
+                    errors.append(f"{ev['path']}: equation_id {eid!r} page mismatch")
+
+            if fid is not None and (fig_map or page_count > 0):
+                if fid not in fig_map:
+                    status = "warning" if status == "ok" else status
+                    notes.append(f"figure_id {fid!r} not found in document.json")
+                    warnings.append(f"{ev['path']}: figure_id {fid!r} not found in document.json")
+                elif p is not None and fig_map[fid]["page"] != p:
+                    status = "error"
+                    notes.append(f"figure_id {fid!r} belongs to page {fig_map[fid]['page']}, not {p}")
+                    errors.append(f"{ev['path']}: figure_id {fid!r} page mismatch")
 
             if quote:
                 nq = normalize_for_match(quote)
@@ -160,13 +224,22 @@ def audit(
                 else:
                     notes.append("no extracted page text to match quote against")
 
-            evidence_checks.append({
+            check_row: Dict[str, Any] = {
                 "path": ev["path"],
                 "page": p,
                 "block_id": bid,
                 "status": status,
                 "notes": notes,
-            })
+            }
+            if tid is not None:
+                check_row["table_id"] = tid
+            if mtid is not None:
+                check_row["merged_table_id"] = mtid
+            if eid is not None:
+                check_row["equation_id"] = eid
+            if fid is not None:
+                check_row["figure_id"] = fid
+            evidence_checks.append(check_row)
 
     return {
         "passed": len(errors) == 0,

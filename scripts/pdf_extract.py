@@ -20,6 +20,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+sys.dont_write_bytecode = True
+
 from pdf_common import (
     bbox_contains_center,
     bbox_iou,
@@ -34,7 +36,7 @@ from pdf_common import (
 )
 
 CAPTION_RE = re.compile(
-    r"^(?:Figure|Fig\.?|Table|Tab\.?|Scheme|Algorithm|Listing|图|表)\s*\d+[A-Za-z0-9.\-]*(?:[:.\s]|$)",
+    r"^(?:(?:Supplementary|Extended\s+Data)\s+)?(?:Figure|Fig\.?|Table|Tab\.?|Scheme|Algorithm|Listing|附图|附表|图|表)\s*[A-Za-z]?\d+[A-Za-z0-9.\-]*(?:[:.\s]|$)",
     re.I,
 )
 HEADING_RE = re.compile(
@@ -42,13 +44,13 @@ HEADING_RE = re.compile(
     r"Abstract|Introduction|Background|Related\s+Work|Methods?|Methodology|Materials?\s+and\s+Methods?|"
     r"Experimental(?:\s+Setup)?|Results?(?:\s+and\s+Discussion)?|Discussion|Conclusions?|"
     r"Acknowledgements?|References|Bibliography|Appendix(?:\s+[A-Z0-9]+)?|"
-    r"摘要|引言|前言|相关工作|方法|实验|结果与讨论|结论|致谢|参考文献|附录|"
-    r"(?:\d+(?:\.\d+){0,3}\.?|[IVX]{1,5}\.|[A-Z]\.)\s+\S+"
+    r"摘要|引言|前言|研究背景|相关工作|方法|材料与方法|实验|实验结果|结果与讨论|结果与分析|讨论|结论|结语|致谢|参考文献|附录(?:\s*[A-Z0-9]+)?|"
+    r"(?:\d+(?:\.\d+){0,3}\.?|[IVX]{1,5}\.|[A-Z]\.|[一二三四五六七八九十]+、|（[一二三四五六七八九十]+）|\d+、|第[一二三四五六七八九十\d]+[章节])\s*\S+"
     r")$",
     re.I,
 )
 HEADING_PREFIX_RE = re.compile(
-    r"^(?:(?:\d+(?:\.\d+){0,3}\.?|[IVX]{1,5}\.|[A-Z]\.)\s+\S+|"
+    r"^(?:(?:\d+(?:\.\d+){0,3}\.?|[IVX]{1,5}\.|[A-Z]\.|[一二三四五六七八九十]+、|（[一二三四五六七八九十]+）|\d+、|第[一二三四五六七八九十\d]+[章节])\s*\S+|"
     r"(?:Abstract|Introduction|Background|Related\s+Work|Methods?|Methodology|Materials?\s+and\s+Methods?|"
     r"Experimental\s+Setup|Results?(?:\s+and\s+Discussion)?|Discussion|Conclusions?|Acknowledgements?|References|Bibliography|Appendix)\b)",
     re.I,
@@ -60,21 +62,33 @@ EQ_LABEL_RE = re.compile(r"(?:\((\d+(?:\.\d+)?[a-z]?)\)|\[(\d+(?:\.\d+)?[a-z]?)\
 PURE_EQ_LABEL_RE = re.compile(r"^\s*(?:\((\d+(?:\.\d+)?[a-z]?)\)|\[(\d+(?:\.\d+)?[a-z]?)\])\s*$")
 MATH_SYMBOLS = set("=≈≠≤≥<>±×÷·∑∏∫∂∇√∞∈∉⊂⊆∪∩∀∃αβγδεζηθικλμνξοπρστυφχψωΓΔΘΛΞΠΣΦΨΩ→←↔⇒⇔")
 SYMBOL_PUA_MAP = {
-    0xF044: "Δ", 0xF053: "Σ", 0xF057: "Ω", 0xF061: "α", 0xF062: "β",
-    0xF067: "γ", 0xF064: "δ", 0xF065: "ε", 0xF07A: "ζ", 0xF068: "η",
-    0xF071: "θ", 0xF06B: "κ", 0xF06C: "λ", 0xF06D: "μ", 0xF06E: "ν",
-    0xF070: "π", 0xF072: "ρ", 0xF073: "σ", 0xF074: "τ", 0xF066: "φ",
-    0xF063: "χ", 0xF079: "ψ", 0xF077: "ω", 0xF0B1: "±", 0xF0A3: "≤",
-    0xF0B3: "≥", 0xF0B4: "×", 0xF0B8: "÷", 0xF0BB: "≈", 0xF0B9: "≠",
-    0xF0A5: "∞", 0xF0B0: "°", 0xF0AE: "→", 0xF0AC: "←", 0xF0D7: "·",
+    0xF044: "Δ", 0xF046: "Φ", 0xF047: "Γ", 0xF048: "Η", 0xF04C: "Λ", 0xF050: "Π",
+    0xF051: "Θ", 0xF053: "Σ", 0xF057: "Ω", 0xF058: "Ξ", 0xF059: "Ψ",
+    0xF061: "α", 0xF062: "β", 0xF063: "χ", 0xF064: "δ", 0xF065: "ε", 0xF066: "φ",
+    0xF067: "γ", 0xF068: "η", 0xF069: "ι", 0xF06B: "κ", 0xF06C: "λ", 0xF06D: "μ",
+    0xF06E: "ν", 0xF06F: "ο", 0xF070: "π", 0xF071: "θ", 0xF072: "ρ", 0xF073: "σ",
+    0xF074: "τ", 0xF075: "υ", 0xF077: "ω", 0xF078: "ξ", 0xF079: "ψ", 0xF07A: "ζ",
+    0xF0B1: "±", 0xF0A3: "≤", 0xF0B3: "≥", 0xF0B4: "×", 0xF0B8: "÷", 0xF0BB: "≈",
+    0xF0B9: "≠", 0xF0A5: "∞", 0xF0B0: "°", 0xF0AE: "→", 0xF0AC: "←", 0xF0D7: "·",
 }
+SYMBOL_ASCII_MAP = {chr(k - 0xF000): v for k, v in SYMBOL_PUA_MAP.items() if 0xF041 <= k <= 0xF07A}
 
 
 def _decode_symbol_pua(txt: str, font_name: str) -> str:
-    """Decode Windows Symbol-font Private Use Area codepoints (U+F0xx) into standard Unicode symbols."""
+    """Decode Windows Symbol PUA codepoints (U+F0xx) and isolated PostScript Symbol ASCII letters into Unicode."""
     if "symbol" not in font_name.lower():
         return txt
-    return "".join(SYMBOL_PUA_MAP.get(ord(ch), ch) for ch in txt)
+    has_pua = any(0xF000 <= ord(ch) <= 0xF0FF for ch in txt)
+    allow_ascii = (not has_pua) and (not re.search(r"[A-Za-z]{2,}", txt))
+    out = []
+    for ch in txt:
+        if ord(ch) in SYMBOL_PUA_MAP:
+            out.append(SYMBOL_PUA_MAP[ord(ch)])
+        elif allow_ascii and ch in SYMBOL_ASCII_MAP:
+            out.append(SYMBOL_ASCII_MAP[ch])
+        else:
+            out.append(ch)
+    return "".join(out)
 
 
 def _span_text_with_scripts(spans: List[Dict[str, Any]]) -> Tuple[str, str, bool]:
@@ -96,7 +110,7 @@ def _span_text_with_scripts(spans: List[Dict[str, Any]]) -> Tuple[str, str, bool
     med_cy = statistics.median(base_ys) if base_ys else 0.0
 
     raw_parts: List[str] = []
-    fmt_parts: List[str] = []
+    fmt_runs: List[Tuple[str, str]] = []
     has_unreadable = False
 
     for s in spans:
@@ -117,12 +131,28 @@ def _span_text_with_scripts(spans: List[Dict[str, Any]]) -> Tuple[str, str, bool
         is_super = bool(flags & 1) or (fs <= 0.80 * med_fs and med_cy > 0 and cy < med_cy - 0.14 * med_fs)
         is_sub = (not is_super) and (fs <= 0.80 * med_fs and med_cy > 0 and cy > med_cy + 0.14 * med_fs)
 
+        if not stripped and (is_super or is_sub) and fmt_runs and fmt_runs[-1][0] in ("super", "sub"):
+            continue
         if stripped and is_super and len(stripped) <= 12:
-            fmt_parts.append(f"^{{{stripped}}}")
+            kind, val = "super", stripped
         elif stripped and is_sub and len(stripped) <= 12:
-            fmt_parts.append(f"_{{{stripped}}}")
+            kind, val = "sub", stripped
         else:
-            fmt_parts.append(txt)
+            kind, val = "normal", txt
+
+        if fmt_runs and fmt_runs[-1][0] == kind and kind in ("super", "sub") and len(fmt_runs[-1][1]) + len(val) <= 18:
+            fmt_runs[-1] = (kind, fmt_runs[-1][1] + val)
+        else:
+            fmt_runs.append((kind, val))
+
+    fmt_parts: List[str] = []
+    for kind, val in fmt_runs:
+        if kind == "super":
+            fmt_parts.append(f"^{{{val}}}")
+        elif kind == "sub":
+            fmt_parts.append(f"_{{{val}}}")
+        else:
+            fmt_parts.append(val)
 
     return "".join(raw_parts), "".join(fmt_parts), has_unreadable
 
@@ -153,17 +183,14 @@ def _join_block_lines(lines_info: List[Dict[str, Any]], use_formatted: bool = Fa
 
 
 def _detect_column_gutters(blocks: List[Dict[str, Any]], content_x0: float, content_x1: float) -> List[float]:
-    """Detect vertical column gutters inside a horizontal band of blocks using 200-bin projection."""
+    """Detect vertical column gutters inside a horizontal band using 200-bin occupancy projection."""
     width = content_x1 - content_x0
     if len(blocks) < 2 or width <= 50.0:
-        return []
-    non_spanning = [b for b in blocks if (b["bbox"][2] - b["bbox"][0]) < 0.58 * width]
-    if len(non_spanning) < 2:
         return []
 
     bins = 200
     occ = [0] * bins
-    for b in non_spanning:
+    for b in blocks:
         x0 = float(b["bbox"][0])
         x1 = float(b["bbox"][2])
         if x1 - x0 > 6.0:
@@ -176,83 +203,225 @@ def _detect_column_gutters(blocks: List[Dict[str, Any]], content_x0: float, cont
 
     gutters: List[float] = []
     run_start: Optional[int] = None
-    for i in range(int(0.15 * bins), int(0.85 * bins) + 1):
+    for i in range(int(0.10 * bins), int(0.90 * bins) + 1):
         if occ[i] == 0:
             if run_start is None:
                 run_start = i
         else:
             if run_start is not None and (i - run_start) >= 2:
+                gap_pts = ((i - run_start) / bins) * width
                 has_left = any(occ[j] > 0 for j in range(0, run_start))
                 has_right = any(occ[j] > 0 for j in range(i, bins))
-                if has_left and has_right:
+                if gap_pts >= 6.0 and has_left and has_right:
                     gutters.append(content_x0 + ((run_start + i) / 2.0) / bins * width)
             run_start = None
     return gutters[:2]
 
 
-def _order_band_blocks(blocks: List[Dict[str, Any]], content_x0: float, content_x1: float) -> List[Dict[str, Any]]:
-    """Order blocks inside a horizontal band by column (left-to-right), then top-to-bottom."""
+def _sort_leaf_by_rows(blocks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Sort leaf blocks top-to-bottom while keeping same-visual-line fragments ordered left-to-right."""
+    if len(blocks) <= 1:
+        return list(blocks)
+    by_y = sorted(blocks, key=lambda b: (round(b["bbox"][1], 1), round(b["bbox"][0], 1)))
+    rows: List[Tuple[float, float, List[Dict[str, Any]]]] = []
+    for b in by_y:
+        y0, y1 = float(b["bbox"][1]), float(b["bbox"][3])
+        h = max(1.0, y1 - y0)
+        if rows:
+            ry0, ry1, rlist = rows[-1]
+            rh = max(1.0, ry1 - ry0)
+            y_ov = min(y1, ry1) - max(y0, ry0)
+            if y_ov >= 0.45 * min(h, rh):
+                rlist.append(b)
+                rows[-1] = (min(ry0, y0), max(ry1, y1), rlist)
+                continue
+        rows.append((y0, y1, [b]))
+    out: List[Dict[str, Any]] = []
+    for _, _, rlist in rows:
+        rlist.sort(key=lambda b: (round(b["bbox"][0], 1), round(b["bbox"][1], 1)))
+        out.extend(rlist)
+    return out
+
+
+def _split_y_bands(blocks: List[Dict[str, Any]], min_y_gap: float = 1.5) -> List[List[Dict[str, Any]]]:
+    """Partition blocks into non-overlapping horizontal Y-bands separated by vertical whitespace."""
+    if len(blocks) <= 1:
+        return [list(blocks)] if blocks else []
+    by_y = sorted(blocks, key=lambda b: (b["bbox"][1], b["bbox"][0]))
+    bands: List[Tuple[float, float, List[Dict[str, Any]]]] = []
+    for b in by_y:
+        y0, y1 = float(b["bbox"][1]), float(b["bbox"][3])
+        if bands and y0 <= bands[-1][1] + min_y_gap:
+            by0, by1, blist = bands[-1]
+            blist.append(b)
+            bands[-1] = (by0, max(by1, y1), blist)
+        else:
+            bands.append((y0, y1, [b]))
+    return [blist for _, _, blist in bands]
+
+
+def _xy_cut_recursive(
+    blocks: List[Dict[str, Any]],
+    page_w: float,
+    col_offset: int = 0,
+    allow_y_cut: bool = True,
+    depth: int = 0,
+) -> List[Dict[str, Any]]:
+    """Recursive geometric X-Y cut: tries X-gutters first, then Y-whitespace cuts, then spanning fallback."""
     if not blocks:
         return []
-    gutters = _detect_column_gutters(blocks, content_x0, content_x1)
-    if not gutters:
+    if len(blocks) == 1 or depth >= 6:
         for b in blocks:
-            b["column"] = 1
-        return sorted(blocks, key=lambda b: (round(b["bbox"][1], 1), round(b["bbox"][0], 1)))
+            bw = b["bbox"][2] - b["bbox"][0]
+            b["column"] = 0 if (col_offset == 0 and bw >= 0.62 * page_w) else max(1, col_offset or 1)
+        return _sort_leaf_by_rows(blocks)
 
-    cols: List[List[Dict[str, Any]]] = [[] for _ in range(len(gutters) + 1)]
-    for b in blocks:
-        cx = 0.5 * (b["bbox"][0] + b["bbox"][2])
-        col_idx = 0
-        for g in gutters:
-            if cx > g:
-                col_idx += 1
-        b["column"] = col_idx + 1
-        cols[col_idx].append(b)
+    bx0 = min(b["bbox"][0] for b in blocks)
+    bx1 = max(b["bbox"][2] for b in blocks)
 
-    ordered: List[Dict[str, Any]] = []
-    for col_blocks in cols:
-        col_blocks.sort(key=lambda b: (round(b["bbox"][1], 1), round(b["bbox"][0], 1)))
-        ordered.extend(col_blocks)
-    return ordered
+    # Try X-cut (column gutters across current band)
+    gutters = _detect_column_gutters(blocks, bx0, bx1)
+    if gutters:
+        cols: List[List[Dict[str, Any]]] = [[] for _ in range(len(gutters) + 1)]
+        for b in blocks:
+            cx = 0.5 * (b["bbox"][0] + b["bbox"][2])
+            col_idx = 0
+            for g in gutters:
+                if cx > g:
+                    col_idx += 1
+            cols[col_idx].append(b)
+        non_empty = [(idx, c) for idx, c in enumerate(cols) if c]
+        if len(non_empty) >= 2:
+            ordered: List[Dict[str, Any]] = []
+            for seq_idx, (_, col_blocks) in enumerate(non_empty):
+                sub_col = (col_offset + seq_idx) if col_offset > 0 else (seq_idx + 1)
+                ordered.extend(_xy_cut_recursive(col_blocks, page_w, col_offset=sub_col, allow_y_cut=True, depth=depth + 1))
+            return ordered
 
+    # No global X-gutter -> try horizontal Y-cut first to isolate full-width headings/captions/bands
+    if allow_y_cut:
+        y_bands = _split_y_bands(blocks)
+        if len(y_bands) >= 2:
+            # Coalesce consecutive Y-bands sharing multi-column gutters so aligned rows stay column-ordered.
+            merged_bands: List[List[Dict[str, Any]]] = [y_bands[0]]
+            for nxt_band in y_bands[1:]:
+                cur_band = merged_bands[-1]
+                cur_x0 = min(b["bbox"][0] for b in cur_band)
+                cur_x1 = max(b["bbox"][2] for b in cur_band)
+                cur_g = _detect_column_gutters(cur_band, cur_x0, cur_x1)
+                comb = cur_band + nxt_band
+                comb_x0 = min(b["bbox"][0] for b in comb)
+                comb_x1 = max(b["bbox"][2] for b in comb)
+                comb_g = _detect_column_gutters(comb, comb_x0, comb_x1)
+                if cur_g and comb_g and len(comb_g) >= len(cur_g):
+                    nxt_x0 = min(b["bbox"][0] for b in nxt_band)
+                    nxt_x1 = max(b["bbox"][2] for b in nxt_band)
+                    nxt_g = _detect_column_gutters(nxt_band, nxt_x0, nxt_x1)
+                    y_gap = min(b["bbox"][1] for b in nxt_band) - max(b["bbox"][3] for b in cur_band)
+                    crosses_comb = any(
+                        b["bbox"][0] < g - 2.0 and b["bbox"][2] > g + 2.0
+                        for b in nxt_band
+                        for g in comb_g
+                    )
+                    if not crosses_comb and (nxt_g or y_gap <= 18.0):
+                        merged_bands[-1] = comb
+                        continue
+                merged_bands.append(nxt_band)
+            ordered = []
+            for band in merged_bands:
+                ordered.extend(_xy_cut_recursive(band, page_w, col_offset=col_offset, allow_y_cut=False, depth=depth + 1))
+            return ordered
 
-def _xy_cut_order(blocks: List[Dict[str, Any]], page_w: float) -> List[Dict[str, Any]]:
-    """Order page blocks using spanning-block band splitting + multi-column X-Y cut."""
-    if not blocks:
-        return []
-    content_x0 = min(b["bbox"][0] for b in blocks)
-    content_x1 = max(b["bbox"][2] for b in blocks)
-    span_x = content_x1 - content_x0
+    # Fallback: if a wide spanning block overlaps columns vertically, peel spanning blocks cleanly
+    span_x = bx1 - bx0
     content_w = max(page_w * 0.6, span_x)
-    mid_x = 0.5 * (content_x0 + content_x1) if span_x >= 0.65 * page_w else 0.5 * page_w
-
+    mid_x = 0.5 * (bx0 + bx1) if span_x >= 0.62 * page_w else 0.5 * page_w
     spanning: List[Dict[str, Any]] = []
     regular: List[Dict[str, Any]] = []
     for b in blocks:
         bw = b["bbox"][2] - b["bbox"][0]
         crosses_mid = b["bbox"][0] < mid_x - 0.05 * content_w and b["bbox"][2] > mid_x + 0.05 * content_w
-        if bw >= 0.58 * content_w and crosses_mid:
-            b["column"] = 0  # spanning
+        if col_offset == 0 and bw >= 0.62 * content_w and crosses_mid:
+            b["column"] = 0
             spanning.append(b)
         else:
             regular.append(b)
 
-    spanning.sort(key=lambda b: (b["bbox"][1], b["bbox"][0]))
-    if not spanning:
-        return _order_band_blocks(regular, content_x0, content_x1)
+    if spanning and regular:
+        spanning.sort(key=lambda b: (b["bbox"][1], b["bbox"][0]))
+        ordered = []
+        prev_y = -1e9
+        for sp in spanning:
+            sp_cy = 0.5 * (sp["bbox"][1] + sp["bbox"][3])
+            sub = [b for b in regular if prev_y <= 0.5 * (b["bbox"][1] + b["bbox"][3]) < sp_cy]
+            ordered.extend(_xy_cut_recursive(sub, page_w, col_offset=col_offset, allow_y_cut=True, depth=depth + 1))
+            ordered.append(sp)
+            prev_y = sp_cy
+        tail = [b for b in regular if 0.5 * (b["bbox"][1] + b["bbox"][3]) >= prev_y]
+        ordered.extend(_xy_cut_recursive(tail, page_w, col_offset=col_offset, allow_y_cut=True, depth=depth + 1))
+        return ordered
 
-    ordered: List[Dict[str, Any]] = []
-    prev_y = -1e9
-    for sp in spanning:
-        sp_cy = 0.5 * (sp["bbox"][1] + sp["bbox"][3])
-        band = [b for b in regular if prev_y <= 0.5 * (b["bbox"][1] + b["bbox"][3]) < sp_cy]
-        ordered.extend(_order_band_blocks(band, content_x0, content_x1))
-        ordered.append(sp)
-        prev_y = sp_cy
-    tail = [b for b in regular if 0.5 * (b["bbox"][1] + b["bbox"][3]) >= prev_y]
-    ordered.extend(_order_band_blocks(tail, content_x0, content_x1))
-    return ordered
+    for b in blocks:
+        b["column"] = max(1, col_offset or 1)
+    return _sort_leaf_by_rows(blocks)
+
+
+def _xy_cut_order(blocks: List[Dict[str, Any]], page_w: float) -> List[Dict[str, Any]]:
+    """Order page blocks using recursive X-Y cut with visual-row sorting."""
+    return _xy_cut_recursive(blocks, page_w, col_offset=0, allow_y_cut=True, depth=0)
+
+
+def _coalesce_same_line_fragments(blocks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Merge horizontal single-line fragments split by MuPDF (e.g. inline superscripts) within the same column."""
+    if len(blocks) <= 1:
+        return blocks
+    merged: List[Dict[str, Any]] = [dict(blocks[0])]
+    for nxt in blocks[1:]:
+        cur = merged[-1]
+        if cur.get("column") != nxt.get("column") or cur.get("page") != nxt.get("page"):
+            merged.append(dict(nxt))
+            continue
+        if PURE_EQ_LABEL_RE.match(nxt["raw_text"]) or CAPTION_RE.match(cur["raw_text"]) or CAPTION_RE.match(nxt["raw_text"]):
+            merged.append(dict(nxt))
+            continue
+        cb, nb = cur["bbox"], nxt["bbox"]
+        ch = max(1.0, cb[3] - cb[1])
+        nh = max(1.0, nb[3] - nb[1])
+        fs_max = max(float(cur.get("font_size") or 10.0), float(nxt.get("font_size") or 10.0))
+        y_ov = min(cb[3], nb[3]) - max(cb[1], nb[1])
+        dx = nb[0] - cb[2]
+        nxt_txt = nxt.get("text", "")
+        is_script_cont = nxt_txt.lstrip().startswith(("^{", "_{"))
+        if ch <= 2.4 * fs_max and nh <= 2.4 * fs_max and y_ov >= 0.45 * min(ch, nh):
+            if (-3.0 <= dx <= 10.0) or (is_script_cont and -3.0 <= dx <= 22.0):
+                cur_r = cur["raw_text"].rstrip()
+                nxt_r = nxt["raw_text"].lstrip()
+                cur_t = cur["text"].rstrip()
+                nxt_t = nxt_txt.lstrip()
+                no_space_fmt = is_script_cont or (bool(cur_t and nxt_t) and _is_cjk(cur_t[-1]) and _is_cjk(nxt_t[0]))
+                no_space_raw = is_script_cont or (bool(cur_r and nxt_r) and _is_cjk(cur_r[-1]) and _is_cjk(nxt_r[0]))
+                cur["raw_text"] = (cur_r + nxt_r) if no_space_raw else (cur_r + " " + nxt_r)
+                cur["text"] = (cur_t + nxt_t) if no_space_fmt else (cur_t + " " + nxt_t)
+                cur["bbox"] = merge_bbox([cb, nb])
+                cur["font_size"] = max(float(cur.get("font_size") or 0.0), float(nxt.get("font_size") or 0.0))
+                cur["defects"] = detect_encoding_defects(cur["raw_text"])
+                continue
+        merged.append(dict(nxt))
+    return merged
+
+
+def _bbox_containment(a: List[float], b: List[float]) -> float:
+    """Compute intersection area divided by the smaller box area to detect nested duplicate detections."""
+    x0 = max(a[0], b[0])
+    y0 = max(a[1], b[1])
+    x1 = min(a[2], b[2])
+    y1 = min(a[3], b[3])
+    if x1 <= x0 or y1 <= y0:
+        return 0.0
+    inter = (x1 - x0) * (y1 - y0)
+    area_a = max(1e-6, (a[2] - a[0]) * (a[3] - a[1]))
+    area_b = max(1e-6, (b[2] - b[0]) * (b[3] - b[1]))
+    return inter / min(area_a, area_b)
 
 
 def _clean_table_rows(rows: List[List[str]]) -> List[List[str]]:
@@ -343,14 +512,18 @@ def _extract_tables_pdfplumber(pdf_path: Path, pages: List[int]) -> Dict[int, Li
                 if len(clean_rows) >= 2 and len(clean_rows[0]) >= 2:
                     candidates.append(("pdfplumber_lines", [round(x, 2) for x in tbl.bbox], clean_rows))
 
-            # Collect caption Y-positions to avoid merging separate tables across captions
-            caption_ys: List[float] = []
+            # Collect caption bounding boxes to avoid merging separate tables across captions
+            caption_boxes: List[Tuple[float, float, float]] = []
             try:
                 page_txt_lines = (page.extract_text_lines() or [])
                 for tln in page_txt_lines:
                     lt = normalize_ligatures(tln.get("text") or "").strip()
                     if CAPTION_RE.match(lt):
-                        caption_ys.append(0.5 * (float(tln["top"]) + float(tln["bottom"])))
+                        caption_boxes.append((
+                            float(tln["x0"]),
+                            float(tln["x1"]),
+                            0.5 * (float(tln["top"]) + float(tln["bottom"])),
+                        ))
             except Exception:
                 pass
 
@@ -376,19 +549,50 @@ def _extract_tables_pdfplumber(pdf_path: Path, pages: List[int]) -> Dict[int, Li
                             "top": rule_box[1],
                             "bottom": rule_box[3],
                         })
-            h_rules.sort(key=lambda ln: ln["top"])
             if len(h_rules) >= 2:
-                groups: List[List[Dict[str, float]]] = [[h_rules[0]]]
-                for ln in h_rules[1:]:
-                    prev_grp = groups[-1]
-                    prev_y = prev_grp[-1]["bottom"]
-                    gap = ln["top"] - prev_grp[-1]["top"]
-                    same_span = abs(ln["x0"] - prev_grp[0]["x0"]) <= 35.0 and abs(ln["x1"] - prev_grp[0]["x1"]) <= 35.0
-                    has_caption_between = any(prev_y < cy < ln["top"] for cy in caption_ys)
-                    if not has_caption_between and (gap <= 260.0 or (len(prev_grp) == 2 and same_span and gap <= 550.0)):
-                        prev_grp.append(ln)
+                # Cluster horizontal rules into X-lanes first so side-by-side column tables never merge.
+                lanes: List[Dict[str, Any]] = []
+                for ln in sorted(h_rules, key=lambda r: (-(r["x1"] - r["x0"]), r["x0"], r["top"])):
+                    lw = max(1e-3, ln["x1"] - ln["x0"])
+                    best_lane = None
+                    best_ratio = 0.0
+                    for lane in lanes:
+                        lane_w = max(1e-3, lane["x1"] - lane["x0"])
+                        ov = max(0.0, min(ln["x1"], lane["x1"]) - max(ln["x0"], lane["x0"]))
+                        ratio = ov / max(lw, lane_w)
+                        if ov >= 0.5 * min(lw, lane_w) and ratio >= 0.45 and ratio > best_ratio:
+                            best_ratio = ratio
+                            best_lane = lane
+                    if best_lane is not None:
+                        best_lane["rules"].append(ln)
                     else:
-                        groups.append([ln])
+                        lanes.append({"x0": ln["x0"], "x1": ln["x1"], "rules": [ln]})
+                groups: List[List[Dict[str, float]]] = []
+                for lane in lanes:
+                    lane_rules = sorted(lane["rules"], key=lambda r: r["top"])
+                    if len(lane_rules) < 2:
+                        continue
+                    lane_groups: List[List[Dict[str, float]]] = [[lane_rules[0]]]
+                    lane_w = max(1e-3, lane["x1"] - lane["x0"])
+                    for ln in lane_rules[1:]:
+                        prev_grp = lane_groups[-1]
+                        prev_y = prev_grp[-1]["bottom"]
+                        gap = ln["top"] - prev_grp[-1]["top"]
+                        same_span = abs(ln["x0"] - prev_grp[0]["x0"]) <= 35.0 and abs(ln["x1"] - prev_grp[0]["x1"]) <= 35.0
+                        has_caption_between = any(
+                            prev_y < cy < ln["top"]
+                            and (cx1 >= lane["x0"] - 30.0 and cx0 <= lane["x1"] + 30.0)
+                            and (
+                                (cx1 - cx0) >= 0.55 * page.width
+                                or (min(cx1, lane["x1"]) - max(cx0, lane["x0"])) >= 0.25 * min(max(1.0, cx1 - cx0), lane_w)
+                            )
+                            for cx0, cx1, cy in caption_boxes
+                        )
+                        if not has_caption_between and (gap <= 260.0 or (len(prev_grp) == 2 and same_span and gap <= 550.0)):
+                            prev_grp.append(ln)
+                        else:
+                            lane_groups.append([ln])
+                    groups.extend(lane_groups)
                 for grp in groups:
                     if len(grp) < 2:
                         continue
@@ -419,10 +623,10 @@ def _extract_tables_pdfplumber(pdf_path: Path, pages: List[int]) -> Dict[int, Li
                                 clean_rows,
                             ))
 
-            # Deduplicate overlapping tables
+            # Deduplicate overlapping tables (including tight inner bounds inside wide rule tables)
             kept: List[Dict[str, Any]] = []
             for method, bbox, rows in candidates:
-                if any(bbox_iou(bbox, k["bbox"]) > 0.5 for k in kept):
+                if any(bbox_iou(bbox, k["bbox"]) > 0.40 or _bbox_containment(bbox, k["bbox"]) >= 0.65 for k in kept):
                     continue
                 kept.append({"method": method, "bbox": bbox, "rows": rows})
             by_page[pno] = kept
@@ -527,23 +731,62 @@ def _detect_unextracted_table_candidates(page: Any, extracted_tables: List[Dict[
 
 
 def _split_wide_multicolumn_lines(lines: List[Dict[str, Any]], pw: float) -> List[List[Dict[str, Any]]]:
-    """Split a wide MuPDF block into column-aligned line groups if MuPDF merged left & right columns."""
-    if len(lines) < 2:
+    """Split a wide MuPDF block into column-aligned line groups using 200-bin X-projection."""
+    if len(lines) < 2 or pw <= 50.0:
         return [lines]
-    mid_x = 0.5 * pw
-    left_lines: List[Dict[str, Any]] = []
-    right_lines: List[Dict[str, Any]] = []
-    for ln in lines:
-        bb = ln.get("bbox", [0, 0, 0, 0])
-        if bb[2] < mid_x + 4.0 and bb[0] < mid_x - 8.0:
-            left_lines.append(ln)
-        elif bb[0] > mid_x - 4.0 and bb[2] > mid_x + 8.0:
-            right_lines.append(ln)
+    valid_boxes = [ln.get("bbox") for ln in lines if ln.get("bbox") and (ln["bbox"][2] - ln["bbox"][0]) > 1.0]
+    if len(valid_boxes) < 2:
+        return [lines]
+
+    bins = 200
+    occ = [0] * bins
+    for bb in valid_boxes:
+        x0 = float(bb[0])
+        x1 = float(bb[2])
+        if x1 - x0 > 6.0:
+            x0 += 1.0
+            x1 -= 1.0
+        b0 = max(0, min(bins - 1, int((x0 / pw) * bins)))
+        b1 = max(0, min(bins - 1, int((x1 / pw) * bins)))
+        for idx in range(b0, b1 + 1):
+            occ[idx] += 1
+
+    gutters: List[float] = []
+    run_start: Optional[int] = None
+    min_gap_pts = max(8.0, 0.014 * pw)
+    for i in range(int(0.10 * bins), int(0.90 * bins) + 1):
+        if occ[i] == 0:
+            if run_start is None:
+                run_start = i
         else:
-            return [lines]  # True spanning line crosses midpoint
-    if left_lines and right_lines:
-        return [left_lines, right_lines]
-    return [lines]
+            if run_start is not None:
+                gap_pts = ((i - run_start) / bins) * pw
+                has_left = any(occ[j] > 0 for j in range(0, run_start))
+                has_right = any(occ[j] > 0 for j in range(i, bins))
+                if gap_pts >= min_gap_pts and has_left and has_right:
+                    gutters.append(((run_start + i) / 2.0) / bins * pw)
+            run_start = None
+
+    if not gutters:
+        return [lines]
+    gutters = gutters[:2]
+    buckets: List[List[Dict[str, Any]]] = [[] for _ in range(len(gutters) + 1)]
+    for ln in lines:
+        bb = ln.get("bbox")
+        if not bb:
+            buckets[0].append(ln)
+            continue
+        for g in gutters:
+            if bb[0] < g - 2.0 and bb[2] > g + 2.0:
+                return [lines]
+        cx = 0.5 * (bb[0] + bb[2])
+        c_idx = 0
+        for g in gutters:
+            if cx > g:
+                c_idx += 1
+        buckets[c_idx].append(ln)
+    non_empty = [b for b in buckets if b]
+    return non_empty if len(non_empty) >= 2 else [lines]
 
 
 def _merge_split_equation_labels(blocks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -612,7 +855,8 @@ def _extract_paper_metadata(blocks: List[Dict[str, Any]], sections: List[Dict[st
     if not p1_blocks:
         return {}
     top_blocks = [b for b in p1_blocks if b["bbox"][1] < 480.0 and len(b["raw_text"]) >= 4]
-    title_blk = max(top_blocks, key=lambda b: (b["font_size"], -b["bbox"][1])) if top_blocks else None
+    title_cands = [b for b in top_blocks if not HEADING_PREFIX_RE.match(b["raw_text"].strip())]
+    title_blk = max(title_cands or top_blocks, key=lambda b: (b["font_size"], -b["bbox"][1])) if top_blocks else None
 
     abstract_texts: List[str] = []
     abstract_bids: List[str] = []
@@ -621,11 +865,14 @@ def _extract_paper_metadata(blocks: List[Dict[str, Any]], sections: List[Dict[st
     authors: List[str] = []
     author_bids: List[str] = []
 
-    if title_blk:
+    if title_blk and not HEADING_PREFIX_RE.match(title_blk["raw_text"].strip()):
         t_idx = next((i for i, b in enumerate(p1_blocks) if b["block_id"] == title_blk["block_id"]), 0)
         for b in p1_blocks[t_idx + 1:]:
             txt = b["raw_text"].strip()
-            if b["role"] == "heading" or re.match(r"^(?:Abstract|摘要|1\.?\s+Introduction)\b", txt, re.I):
+            if b["role"] == "heading" or re.match(r"^(?:Abstract|摘要|1\.?\s+Introduction|一、)\b", txt, re.I):
+                break
+            has_aff_cue = bool(re.search(r"[@]|University|Department|Institute|School|College|Lab|大学|学院|研究所", txt, re.I))
+            if txt.endswith((".", "。")) and len(txt) > 55 and not has_aff_cue:
                 break
             if len(txt) <= 280:
                 authors.append(txt)
@@ -719,11 +966,18 @@ def _extract_with_fitz(pdf_path: Path, page_spec: Optional[str], caps: Dict[str,
     pages = parse_page_spec(page_spec, total_pages)
 
     # Pre-filter pages for expensive pdfplumber table scanning (efficiency boost on long papers)
-    plumber_pages: List[int] = []
+    plumber_pages_set: set[int] = set()
     for pno in pages:
         page = doc[pno - 1]
-        if len(page.get_drawings()) >= 2 or re.search(r"\b(?:Table|Tab\.?)\s*\d+|表\s*\d+", page.get_text("text") or "", re.I):
-            plumber_pages.append(pno)
+        if len(page.get_drawings()) >= 2 or re.search(
+            r"\b(?:Table|Tab\.?|附表|续表)\s*[A-Za-z]?\d*|\bcont(?:inued)?\b|表\s*[A-Za-z]?\d+",
+            page.get_text("text") or "",
+            re.I,
+        ):
+            plumber_pages_set.add(pno)
+            if pno + 1 <= total_pages and (pno + 1) in pages:
+                plumber_pages_set.add(pno + 1)
+    plumber_pages = sorted(plumber_pages_set)
 
     # Table extraction (merge pdfplumber + fitz, keeping richer row/cell candidate on overlap)
     tables_by_page: Dict[int, List[Dict[str, Any]]] = {p: [] for p in pages}
@@ -737,7 +991,10 @@ def _extract_with_fitz(pdf_path: Path, page_spec: Optional[str], caps: Dict[str,
     fitz_tables = _extract_tables_fitz(doc, pages)
     for pno in pages:
         for ft in fitz_tables.get(pno, []):
-            overlaps = [i for i, et in enumerate(tables_by_page[pno]) if bbox_iou(ft["bbox"], et["bbox"]) > 0.45]
+            overlaps = [
+                i for i, et in enumerate(tables_by_page[pno])
+                if bbox_iou(ft["bbox"], et["bbox"]) > 0.40 or _bbox_containment(ft["bbox"], et["bbox"]) >= 0.65
+            ]
             if not overlaps:
                 tables_by_page[pno].append(ft)
             else:
@@ -759,14 +1016,25 @@ def _extract_with_fitz(pdf_path: Path, page_spec: Optional[str], caps: Dict[str,
         pw, ph = float(page.rect.width), float(page.rect.height)
         tdict = page.get_text("dict")
         page_blocks: List[Dict[str, Any]] = []
+        page_images: List[Dict[str, Any]] = []
         p_tables = tables_by_page.get(pno, [])
 
         for blk in tdict.get("blocks", []):
+            if blk.get("type") == 1:
+                ibb = [round(float(x), 2) for x in blk.get("bbox", [0, 0, 0, 0])]
+                if (ibb[2] - ibb[0]) >= 24.0 and (ibb[3] - ibb[1]) >= 24.0:
+                    page_images.append({
+                        "bbox": ibb,
+                        "pixel_width": int(blk.get("width") or 0),
+                        "pixel_height": int(blk.get("height") or 0),
+                        "ext": blk.get("ext"),
+                    })
+                continue
             if blk.get("type") != 0:
                 continue
             blk_lines = blk.get("lines", [])
             bb_raw = [round(float(x), 2) for x in blk["bbox"]]
-            line_groups = _split_wide_multicolumn_lines(blk_lines, pw) if (bb_raw[2] - bb_raw[0]) >= 0.50 * pw else [blk_lines]
+            line_groups = _split_wide_multicolumn_lines(blk_lines, pw) if (bb_raw[2] - bb_raw[0]) >= 0.36 * pw else [blk_lines]
 
             for grp_lines in line_groups:
                 grp_boxes = [ln.get("bbox") for ln in grp_lines if ln.get("bbox")]
@@ -831,6 +1099,7 @@ def _extract_with_fitz(pdf_path: Path, page_spec: Optional[str], caps: Dict[str,
             "width": round(pw, 1),
             "height": round(ph, 1),
             "blocks": page_blocks,
+            "images": page_images,
             "unextracted_table_candidates": unextracted_tbls,
         })
 
@@ -878,7 +1147,7 @@ def _extract_with_fitz(pdf_path: Path, page_spec: Optional[str], caps: Dict[str,
                 continue
             body_candidates.append(b)
 
-        ordered = _merge_split_equation_labels(_xy_cut_order(body_candidates, pw))
+        ordered = _merge_split_equation_labels(_coalesce_same_line_fragments(_xy_cut_order(body_candidates, pw)))
         for idx, b in enumerate(ordered):
             bid = f"p{pno}_b{idx + 1}"
             b["block_id"] = bid
@@ -887,12 +1156,49 @@ def _extract_with_fitz(pdf_path: Path, page_spec: Optional[str], caps: Dict[str,
             bb = b["bbox"]
             fs = b["font_size"]
 
+            # Precompute equation cues so formulas with larger font near top of page aren't stolen by heading rule
+            eq_m = EQ_LABEL_RE.search(txt)
+            math_cnt = sum(1 for ch in txt if ch in MATH_SYMBOLS)
+            eq_label = (eq_m.group(1) or eq_m.group(2)) if eq_m else None
+            is_year_label = bool(eq_label and re.fullmatch(r"(?:19|20)\d{2}", eq_label.strip()))
+            has_citation_cue = bool(re.search(r"\b(?:Ref\.|Refs\.|et\s+al\.|Fig\.|Figs\.|Table|Vol\.|pp\.)", txt, re.IGNORECASE))
+            is_url = bool(re.search(r"https?://", txt, re.IGNORECASE))
+            has_math_op = (
+                math_cnt >= 1
+                or ftxt != txt
+                or (
+                    not is_url
+                    and bool(
+                        re.search(
+                            r"[=<>^_]|(?:^|\s)[+\-*/]=?(?:\s|$)|[a-zA-Z0-9\)\]]\s*[+\-*/=<>]\s*[a-zA-Z0-9\(\[]",
+                            txt,
+                        )
+                    )
+                )
+            )
+            is_eq_by_label = (
+                eq_m is not None
+                and not is_year_label
+                and not has_citation_cue
+                and (not in_references_section or math_cnt >= 4)
+                and (
+                    (has_math_op and len(txt) <= 240)
+                    or (len(txt) <= 120 and len(txt.split()) <= 8 and not re.search(r"\b(?:19|20)\d{2}\b", txt))
+                )
+            )
+            is_eq_by_symbols = (
+                math_cnt >= 4
+                and len(txt) <= 220
+                and fs <= 1.15 * body_fs
+                and (not in_references_section or math_cnt >= 6)
+            )
+
             # Role classification
             role = "paragraph"
             if CAPTION_RE.match(txt):
                 role = "caption"
                 cap_counter += 1
-                cap_kind = "table_caption" if re.match(r"^(?:Table|Tab\.?|表)", txt, re.I) else "figure_caption"
+                cap_kind = "table_caption" if re.match(r"^(?:(?:Supplementary|Extended\s+Data)\s+)?(?:Table|Tab\.?|附表|表)", txt, re.I) else "figure_caption"
                 captions.append({
                     "caption_id": f"cap_{cap_counter}",
                     "kind": cap_kind,
@@ -911,8 +1217,22 @@ def _extract_with_fitz(pdf_path: Path, page_spec: Optional[str], caps: Dict[str,
                     "bbox": bb,
                     "text": ftxt,
                 })
+            elif (is_eq_by_label or is_eq_by_symbols) and not (HEADING_PREFIX_RE.match(txt) and "=" not in txt and not eq_label):
+                role = "equation"
+                eq_counter += 1
+                equations.append({
+                    "equation_id": f"eq_{eq_counter}",
+                    "label": eq_label,
+                    "page": pno,
+                    "block_id": bid,
+                    "bbox": bb,
+                    "raw_text": txt,
+                    "script_text": ftxt,
+                    "has_unreadable": b["defects"]["has_defects"],
+                })
             elif (
-                len(txt) <= 180
+                "=" not in txt
+                and len(txt) <= 180
                 and "\n" not in txt
                 and (
                     (fs >= 1.10 * body_fs and (b["is_bold"] or HEADING_PREFIX_RE.match(txt) or idx <= 3))
@@ -948,32 +1268,16 @@ def _extract_with_fitz(pdf_path: Path, page_spec: Optional[str], caps: Dict[str,
                     "block_id": bid,
                     "bbox": bb,
                 })
-            else:
-                eq_m = EQ_LABEL_RE.search(txt)
-                math_cnt = sum(1 for ch in txt if ch in MATH_SYMBOLS)
-                if (eq_m and len(txt) <= 240) or (math_cnt >= 4 and len(txt) <= 220 and fs <= 1.15 * body_fs):
-                    role = "equation"
-                    eq_counter += 1
-                    equations.append({
-                        "equation_id": f"eq_{eq_counter}",
-                        "label": (eq_m.group(1) or eq_m.group(2)) if eq_m else None,
-                        "page": pno,
-                        "block_id": bid,
-                        "bbox": bb,
-                        "raw_text": txt,
-                        "script_text": ftxt,
-                        "has_unreadable": b["defects"]["has_defects"],
-                    })
-                elif in_references_section:
-                    role = "reference"
-                    ref_counter += 1
-                    references.append({
-                        "ref_id": f"ref_{ref_counter}",
-                        "page": pno,
-                        "block_id": bid,
-                        "bbox": bb,
-                        "text": ftxt,
-                    })
+            elif in_references_section:
+                role = "reference"
+                ref_counter += 1
+                references.append({
+                    "ref_id": f"ref_{ref_counter}",
+                    "page": pno,
+                    "block_id": bid,
+                    "bbox": bb,
+                    "text": ftxt,
+                })
 
             if b["defects"]["has_defects"]:
                 unextracted_regions.append({
@@ -1040,8 +1344,15 @@ def _extract_with_fitz(pdf_path: Path, page_spec: Optional[str], caps: Dict[str,
             if structured_tables:
                 prev = structured_tables[-1]
                 cap_txt = (entry["caption"] or "").lower()
-                is_cont_caption = "continued" in cap_txt or "cont." in cap_txt or "续表" in cap_txt
-                same_cols_adjacent = prev["page"] == pno - 1 and prev["num_cols"] == ncols and tb[1] < 220.0
+                is_cont_caption = (
+                    "continued" in cap_txt
+                    or "cont." in cap_txt
+                    or "cont'd" in cap_txt
+                    or "续表" in cap_txt
+                    or "(续)" in cap_txt
+                    or "（续）" in cap_txt
+                )
+                same_cols_adjacent = prev["page"] == pno - 1 and prev["num_cols"] == ncols and tb[1] < 240.0
                 if is_cont_caption or (same_cols_adjacent and (not entry["caption"] or prev["rows"][0] == rows[0])):
                     entry["continues_from"] = prev["table_id"]
                     prev["continued_on"] = tid
@@ -1051,6 +1362,91 @@ def _extract_with_fitz(pdf_path: Path, page_spec: Optional[str], caps: Dict[str,
     merged_tables = _build_merged_tables(structured_tables)
     metadata = _extract_paper_metadata(all_blocks, sections)
     page_label_map, page_numbering_discrepancy = _extract_printed_page_map(headers_footers, total_pages)
+
+    # Mark paragraphs continuing mid-sentence across column/page breaks
+    para_indices = [i for i, blk in enumerate(all_blocks) if blk.get("role") not in ("caption", "footnote")]
+    for pos, idx in enumerate(para_indices[:-1]):
+        cur = all_blocks[idx]
+        nxt = all_blocks[para_indices[pos + 1]]
+        if cur.get("role") != "paragraph" or nxt.get("role") != "paragraph":
+            continue
+        if cur["page"] == nxt["page"] and cur.get("column") == nxt.get("column"):
+            continue
+        ct = cur["raw_text"].rstrip()
+        nt = nxt["raw_text"].lstrip()
+        if not ct or not nt:
+            continue
+        if ct[-1] in ".。!！?？:：;；\"”’）)]":
+            continue
+        if ct[-1] in (",", "，", "、", "-") or nt[0].islower() or _is_cjk(nt[0]):
+            cur["continues_across_break"] = True
+            cur["continued_block_id"] = nxt["block_id"]
+            nxt["continues_from_block_id"] = cur["block_id"]
+
+    # Extract figures[] and flag image-based tables near uncovered table captions
+    figures: List[Dict[str, Any]] = []
+    fig_counter = 0
+    matched_tbl_cap_ids = {t.get("caption_block_id") for t in structured_tables if t.get("caption_block_id")}
+    for rp in raw_pages:
+        pno = rp["page"]
+        pw, ph = rp["width"], rp["height"]
+        page_tbls = [t for t in structured_tables if t["page"] == pno]
+        fig_caps = [c for c in captions if c["page"] == pno and c["kind"] == "figure_caption"]
+        uncov_tbl_caps = [
+            c for c in captions
+            if c["page"] == pno and c["kind"] == "table_caption" and c["block_id"] not in matched_tbl_cap_ids
+        ]
+        for img in rp.get("images", []):
+            ib = img["bbox"]
+            iw, ih = ib[2] - ib[0], ib[3] - ib[1]
+            is_full_scan = (iw >= 0.85 * pw and ih >= 0.85 * ph)
+
+            def _nearest_cap(cands: List[Dict[str, Any]]) -> Tuple[Optional[Dict[str, Any]], float]:
+                best_c = None
+                best_d = 1e9
+                for c in cands:
+                    cb = c["bbox"]
+                    x_ov = min(ib[2], cb[2]) - max(ib[0], cb[0])
+                    cap_w = max(1.0, cb[2] - cb[0])
+                    same_lane = x_ov > -20.0 or cap_w >= 0.55 * pw
+                    if not same_lane:
+                        continue
+                    v_dist = max(0.0, max(ib[1] - cb[3], cb[1] - ib[3]))
+                    if v_dist <= 180.0 and v_dist < best_d:
+                        best_d = v_dist
+                        best_c = c
+                return best_c, best_d
+
+            near_tbl_cap, tbl_dist = _nearest_cap(uncov_tbl_caps)
+            near_fig_cap, fig_dist = _nearest_cap(fig_caps)
+            overlaps_parsed_tbl = any(bbox_iou(ib, t["bbox"]) > 0.25 for t in page_tbls)
+
+            if near_tbl_cap and not overlaps_parsed_tbl and (not near_fig_cap or tbl_dist <= fig_dist):
+                unextracted_regions.append({
+                    "page": pno,
+                    "bbox": ib,
+                    "reason": "image_based_table_near_caption",
+                    "caption": near_tbl_cap["text"],
+                    "caption_block_id": near_tbl_cap["block_id"],
+                })
+                continue
+
+            if is_full_scan and not near_fig_cap:
+                continue
+
+            if not overlaps_parsed_tbl:
+                fig_counter += 1
+                figures.append({
+                    "figure_id": f"fig_{fig_counter}",
+                    "page": pno,
+                    "bbox": ib,
+                    "width_pt": round(iw, 2),
+                    "height_pt": round(ih, 2),
+                    "pixel_size": [img["pixel_width"], img["pixel_height"]],
+                    "ext": img.get("ext"),
+                    "caption": near_fig_cap["text"] if near_fig_cap else None,
+                    "caption_block_id": near_fig_cap["block_id"] if near_fig_cap else None,
+                })
 
     return {
         "file": str(pdf_path),
@@ -1067,6 +1463,7 @@ def _extract_with_fitz(pdf_path: Path, page_spec: Optional[str], caps: Dict[str,
             "sections": len(sections),
             "tables": len(structured_tables),
             "merged_tables": len(merged_tables),
+            "figures": len(figures),
             "captions": len(captions),
             "footnotes": len(footnotes),
             "equations": len(equations),
@@ -1077,6 +1474,7 @@ def _extract_with_fitz(pdf_path: Path, page_spec: Optional[str], caps: Dict[str,
         "sections": sections,
         "tables": structured_tables,
         "merged_tables": merged_tables,
+        "figures": figures,
         "captions": captions,
         "footnotes": footnotes,
         "equations": equations,
@@ -1234,7 +1632,8 @@ def _render_markdown_outputs(doc_data: Dict[str, Any]) -> Tuple[str, str]:
         if b["page"] != current_page:
             current_page = b["page"]
             md_lines.extend(["", f"## Page {current_page}", ""])
-        tag = f"[{b['block_id']}|col{b.get('column', 1)}|{b['role']}|bbox={b['bbox']}]"
+        cont_tag = f"|cont->{b['continued_block_id']}" if b.get("continues_across_break") and b.get("continued_block_id") else ""
+        tag = f"[{b['block_id']}|col{b.get('column', 1)}|{b['role']}{cont_tag}|bbox={b['bbox']}]"
         txt = b["text"]
         if b.get("defects", {}).get("has_defects"):
             txt = f"{txt}\n> [UNREADABLE_DEFECT: page={b['page']}, bbox={b['bbox']}, defects={b['defects']}]"
@@ -1315,6 +1714,13 @@ def _render_outline(doc_data: Dict[str, Any]) -> str:
         lbl = f"({eq['label']})" if eq.get("label") else eq["equation_id"]
         lines.append(f"- `{eq['equation_id']}` {lbl} (p.{eq['page']}, `{eq['block_id']}`): {eq['script_text'][:120]}")
     if not doc_data.get("equations"):
+        lines.append("- (none)")
+
+    lines.extend(["", "## Figures"])
+    for fig in doc_data.get("figures", []):
+        cap = fig.get("caption") or "(no caption)"
+        lines.append(f"- `{fig['figure_id']}` (p.{fig['page']}, bbox=`{fig['bbox']}`): {cap}")
+    if not doc_data.get("figures"):
         lines.append("- (none)")
 
     lines.extend(["", "## Unextracted / Defect Regions (Require Visual/OCR Inspection)"])

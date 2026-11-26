@@ -1,0 +1,20 @@
+{
+  "case_id": "SYNTHETIC_EXAMPLE_TRANS_001",
+  "notice": "SYNTHETIC_EXAMPLE_ONLY",
+  "glossary": {
+    "credible interval": "可信区间",
+    "confidence interval": "置信区间"
+  },
+  "output_contract": {
+    "required_fields": [
+      "case_id",
+      "status",
+      "glossary",
+      "translations",
+      "human_review_items",
+      "sources",
+      "uncertainty",
+      "change_records"
+    ]
+  }
+}

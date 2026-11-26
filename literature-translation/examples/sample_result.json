@@ -1,0 +1,52 @@
+{
+  "case_id": "SYNTHETIC_EXAMPLE_TRANS_001",
+  "notice": "SYNTHETIC_EXAMPLE_ONLY",
+  "status": "completed",
+  "glossary": [
+    {
+      "source": "credible interval",
+      "target": "可信区间",
+      "locked": true,
+      "origin": "case.json:glossary"
+    }
+  ],
+  "census": {
+    "total_document_units": 5,
+    "independent_raw_in_scope_count": 2,
+    "extracted_in_scope_count": 2,
+    "census_exact_match": true,
+    "in_scope_sentence_count": 2
+  },
+  "translations": [
+    {
+      "unit_id": "P00003",
+      "locator": "body/fig[1]/caption[1]/p[1]",
+      "role": "caption",
+      "source_text": "Hill kinetic curve (A2) with V<sub>max</sub> and 95% credible interval.",
+      "translation": "带有 V<sub>max</sub> 及 95% 可信区间的希尔动力学曲线（A2）。",
+      "sentences": [
+        {
+          "sentence_id": "P00003.S001",
+          "locator": "body/fig[1]/caption[1]/p[1]#S001",
+          "source_text": "Hill kinetic curve (A2) with V<sub>max</sub> and 95% credible interval.",
+          "translation": "带有 V<sub>max</sub> 及 95% 可信区间的希尔动力学曲线（A2）。"
+        }
+      ]
+    }
+  ],
+  "human_review_items": [],
+  "sources": [
+    {
+      "locator": "body/fig[1]/caption[1]/p[1]",
+      "unit_id": "P00003",
+      "quote": "Hill kinetic curve (A2) with V<sub>max</sub> and 95% credible interval."
+    }
+  ],
+  "uncertainty": "None (clean synthetic XML).",
+  "change_records": [
+    {
+      "stage": "prep_init",
+      "detail": "Initialized 2 scoped units (2 sentences) with 2 locked glossary terms."
+    }
+  ]
+}

@@ -5,12 +5,54 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
+import zipfile
 from pathlib import Path
 from typing import Any, Dict, List
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
+
+
+def _inspect_non_pdf(path: Path, work_dir: Path) -> Dict[str, Any]:
+    """Extract lightweight text preview for non-PDF inputs (.txt, .md, .csv, .json, .docx, .xlsx, .pptx)."""
+    ext = path.suffix.lower()
+    info: Dict[str, Any] = {"file": str(path), "ext": ext, "size_bytes": path.stat().st_size}
+    if ext in (".txt", ".md", ".csv", ".tsv", ".json", ".yaml", ".yml"):
+        txt = path.read_text(encoding="utf-8", errors="replace")
+        info["line_count"] = len(txt.splitlines())
+        info["preview"] = txt[:400]
+    elif ext in (".docx", ".pptx", ".xlsx"):
+        try:
+            texts: List[str] = []
+            with zipfile.ZipFile(path, "r") as zf:
+                xml_names = sorted(
+                    n for n in zf.namelist()
+                    if n.endswith(".xml") and (
+                        n.startswith("word/document") or n.startswith("ppt/slides/slide") or n.startswith("xl/sharedStrings")
+                    )
+                )
+                for xname in xml_names[:20]:
+                    raw_xml = zf.read(xname)
+                    try:
+                        root = ET.fromstring(raw_xml)
+                        texts.append(" ".join(t.strip() for t in root.itertext() if t and t.strip()))
+                    except ET.ParseError:
+                        # Fallback text extraction if XML fragment has unbound namespace prefixes
+                        stripped = re.sub(r"<[^>]+>", " ", raw_xml.decode("utf-8", errors="replace"))
+                        texts.append(stripped)
+            joined = re.sub(r"\s+", " ", "\n".join(texts)).strip()
+            out_txt = work_dir / f"{path.stem}_{ext.lstrip('.')}.txt"
+            out_txt.write_text(joined, encoding="utf-8")
+            info["extracted_text_path"] = str(out_txt)
+            info["char_count"] = len(joined)
+        except Exception as exc:
+            info["extract_error"] = str(exc)
+    elif ext in (".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp"):
+        info["kind"] = "image_asset"
+    return info
 
 
 def _run_py(script: str, args: List[str]) -> Dict[str, Any]:
@@ -61,10 +103,11 @@ def main() -> int:
 
     other_files = []
     if input_dir.exists():
-        other_files = [
-            str(p) for p in sorted(input_dir.rglob("*"))
-            if p.is_file() and p.suffix.lower() != ".pdf" and p.name not in ("case.json", "task.md")
-        ]
+        other_root = work_dir / "other_inputs"
+        for p in sorted(input_dir.rglob("*")):
+            if p.is_file() and p.suffix.lower() != ".pdf" and p.name not in ("case.json", "task.md"):
+                other_root.mkdir(parents=True, exist_ok=True)
+                other_files.append(_inspect_non_pdf(p, other_root))
 
     docs_summary: List[Dict[str, Any]] = []
     for idx, pdf in enumerate(pdfs):
@@ -106,6 +149,8 @@ def main() -> int:
         doc_json_path = doc_dir / "document.json"
         if doc_json_path.exists():
             doc_obj = json.loads(doc_json_path.read_text(encoding="utf-8"))
+            entry["metadata"] = doc_obj.get("metadata")
+            entry["page_numbering_discrepancy"] = doc_obj.get("page_numbering_discrepancy", False)
             for reg in doc_obj.get("unextracted_regions", []):
                 pno = reg.get("page")
                 bb = reg.get("bbox")
@@ -127,6 +172,15 @@ def main() -> int:
             entry["ocr_rendered_count"] = ocr_res.get("rendered_count", 0)
             entry["ocr_engine_used"] = ocr_res.get("ocr_engine_used")
 
+        entry["gain_diagnostics"] = {
+            "multi_column_pages_reordered": len(summ.get("multi_column_pages") or []),
+            "headers_footers_stripped": (ext_res.get("counts") or {}).get("headers_footers", 0),
+            "tables_extracted": (ext_res.get("counts") or {}).get("tables", 0),
+            "merged_cross_page_tables": (ext_res.get("counts") or {}).get("merged_tables", 0),
+            "equations_detected": (ext_res.get("counts") or {}).get("equations", 0),
+            "unextracted_regions_flagged": (ext_res.get("counts") or {}).get("unextracted_regions", 0),
+            "ocr_rendered_items": entry.get("ocr_rendered_count", 0),
+        }
         entry["status"] = "ok" if ext_res.get("status") == "ok" else "partial"
         docs_summary.append(entry)
 

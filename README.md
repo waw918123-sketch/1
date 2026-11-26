@@ -18,6 +18,7 @@
 ├── scripts/
 │   ├── run_pipeline.py             # 一键编排入口：自动发现输入、体检、提取、定向 OCR 与摘要生成
 │   ├── query_doc.py                # 低 Token 检索器：按关键词/页码/章节/表号返回带溯源坐标的片段
+│   ├── benchmark_suite.py          # 合成基准自测：对比朴素文本流提取与本 Skill 的 7 项结构化指标
 │   ├── pdf_common.py               # 工具探测、字符规范化、编码缺陷检测与几何辅助
 │   ├── pdf_probe.py                # 环境能力探测 + PDF 加密/扫描/乱码/分栏体检
 │   ├── pdf_extract.py              # 多引擎版面顺序提取、章节/表格/公式/脚注/参考文献结构化
@@ -102,6 +103,7 @@ python3 scripts/audit_result.py \
 
 ---
 
-## 最小示例说明
+## 最小示例与合成基准说明
 
-`examples/` 目录提供了一组**最小合成示例**（`minimal_case.json`、`minimal_task.md`、`sample_result.json`），仅用于演示输入输出契约与证据引用格式，不代表或冒充任何正式评测案例及答案。
+- `examples/` 目录提供了一组**最小合成示例**（`minimal_case.json`、`minimal_task.md`、`sample_result.json`），仅用于演示输入输出契约与证据引用格式，不代表或冒充任何正式评测案例及答案。
+- 可运行 `python3 scripts/benchmark_suite.py` 在本地一键构建合成多栏/三线表/跨页续表/分离公式编号/错乱页码测试 PDF，并输出朴素文本流基线与本 Skill 的 7 项对比结果（无预制答案）。

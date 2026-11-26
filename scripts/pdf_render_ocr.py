@@ -22,14 +22,17 @@ def _parse_crop(crop_str: str) -> Tuple[int, List[float]]:
     return int(p_str.strip()), coords
 
 
-def _preprocess_image_for_ocr(img_path: Path) -> Path:
-    """Apply lightweight grayscale + autocontrast + sharpen preprocessing if Pillow is installed."""
+def _preprocess_image_for_ocr(img_path: Path, is_crop: bool = False) -> Path:
+    """Apply grayscale + optional 2x crop upscaling + autocontrast + sharpen preprocessing if Pillow is installed."""
     try:
         from PIL import Image, ImageFilter, ImageOps
     except Exception:
         return img_path
 
     img = Image.open(img_path).convert("L")
+    if is_crop and img.width < 900:
+        resample = getattr(getattr(Image, "Resampling", Image), "LANCZOS", Image.BICUBIC)
+        img = img.resize((img.width * 2, img.height * 2), resample=resample)
     img = ImageOps.autocontrast(img, cutoff=1)
     img = img.filter(ImageFilter.SHARPEN)
     proc_path = img_path.with_name(f"{img_path.stem}_pre{img_path.suffix}")
@@ -37,11 +40,11 @@ def _preprocess_image_for_ocr(img_path: Path) -> Path:
     return proc_path
 
 
-def _run_tesseract_cli(img_path: Path, lang: str, tesseract_bin: str) -> Dict[str, Any]:
+def _run_tesseract_cli(img_path: Path, lang: str, tesseract_bin: str, psm: str = "6") -> Dict[str, Any]:
     """Run tesseract CLI and extract TSV confidence + plain text."""
     # Plain text
     proc_txt = subprocess.run(
-        [tesseract_bin, str(img_path), "stdout", "-l", lang, "--psm", "6"],
+        [tesseract_bin, str(img_path), "stdout", "-l", lang, "--psm", psm],
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -52,7 +55,7 @@ def _run_tesseract_cli(img_path: Path, lang: str, tesseract_bin: str) -> Dict[st
 
     # TSV for word-level confidence
     proc_tsv = subprocess.run(
-        [tesseract_bin, str(img_path), "stdout", "-l", lang, "--psm", "6", "tsv"],
+        [tesseract_bin, str(img_path), "stdout", "-l", lang, "--psm", psm, "tsv"],
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -164,14 +167,17 @@ def render_pages(
                 })
         doc.close()
     else:
-        # pdftoppm fallback for whole pages
+        # pdftoppm fallback for whole pages (+ optional Pillow crops)
         if caps["cli_tools"].get("pdfinfo"):
             proc_info = subprocess.run([caps["cli_tools"]["pdfinfo"], str(pdf_path)], capture_output=True, text=True, check=False)
             for line in (proc_info.stdout or "").splitlines():
                 if line.startswith("Pages:"):
                     total_pages = int(line.split(":", 1)[1].strip())
-        pages = parse_page_spec(page_spec, total_pages or 1000)
-        for pno in pages:
+        pages = parse_page_spec(page_spec, total_pages or 1000) if (page_spec or not crops) else []
+        crop_specs = [_parse_crop(c) for c in crops]
+        render_pages_needed = sorted(set(pages) | {p for p, _ in crop_specs})
+        rendered_page_map: Dict[int, Path] = {}
+        for pno in render_pages_needed:
             prefix = out_dir / f"page_{pno:03d}"
             subprocess.run(
                 [caps["cli_tools"]["pdftoppm"], "-png", "-r", str(dpi), "-f", str(pno), "-l", str(pno), "-singlefile", str(pdf_path), str(prefix)],
@@ -180,7 +186,33 @@ def render_pages(
             )
             png_path = Path(f"{prefix}.png")
             if png_path.exists():
-                rendered.append({"kind": "page", "page": pno, "dpi": dpi, "image_path": str(png_path)})
+                rendered_page_map[pno] = png_path
+                if pno in pages:
+                    rendered.append({"kind": "page", "page": pno, "dpi": dpi, "image_path": str(png_path)})
+        if crop_specs and caps["python_modules"].get("pillow"):
+            from PIL import Image
+            scale = dpi / 72.0
+            for idx, (pno, coords) in enumerate(crop_specs):
+                src_png = rendered_page_map.get(pno)
+                if not src_png or not src_png.exists():
+                    continue
+                im = Image.open(src_png)
+                box = (
+                    max(0, int(coords[0] * scale)),
+                    max(0, int(coords[1] * scale)),
+                    min(im.width, int(coords[2] * scale)),
+                    min(im.height, int(coords[3] * scale)),
+                )
+                if box[2] > box[0] and box[3] > box[1]:
+                    crop_path = out_dir / f"crop_{idx + 1:02d}_p{pno:03d}.png"
+                    im.crop(box).save(crop_path)
+                    rendered.append({
+                        "kind": "crop",
+                        "page": pno,
+                        "bbox": coords,
+                        "dpi": dpi,
+                        "image_path": str(crop_path),
+                    })
 
     # OCR stage
     tesseract_bin = caps["cli_tools"].get("tesseract")
@@ -201,12 +233,13 @@ def render_pages(
             item["ocr"] = None
             continue
         img_p = Path(item["image_path"])
-        proc_img = _preprocess_image_for_ocr(img_p)
+        is_crop = item.get("kind") == "crop"
+        proc_img = _preprocess_image_for_ocr(img_p, is_crop=is_crop)
         if ocr_mode in ("auto", "rapidocr") and has_rapidocr:
             ocr_res = _run_rapidocr(proc_img)
             ocr_engine_used = "rapidocr_onnxruntime"
         elif ocr_mode in ("auto", "tesseract") and tesseract_bin:
-            ocr_res = _run_tesseract_cli(proc_img, effective_lang, tesseract_bin)
+            ocr_res = _run_tesseract_cli(proc_img, effective_lang, tesseract_bin, psm="6" if is_crop else "3")
             ocr_engine_used = "tesseract_cli"
         else:
             ocr_res = {

@@ -57,7 +57,24 @@ REF_SECTION_RE = re.compile(r"^(?:\d+\.?\s*)?(?:References|Bibliography|参考�
 REF_ITEM_RE = re.compile(r"^(?:\[\d+\]|\(\d+\)|\d+\.\s+[A-Z\u4e00-\u9fff])")
 FOOTNOTE_RE = re.compile(r"^(?:\*+|†|‡|§|\d{1,2})\s*\S+")
 EQ_LABEL_RE = re.compile(r"(?:\((\d+(?:\.\d+)?[a-z]?)\)|\[(\d+(?:\.\d+)?[a-z]?)\])$")
+PURE_EQ_LABEL_RE = re.compile(r"^\s*(?:\((\d+(?:\.\d+)?[a-z]?)\)|\[(\d+(?:\.\d+)?[a-z]?)\])\s*$")
 MATH_SYMBOLS = set("=≈≠≤≥<>±×÷·∑∏∫∂∇√∞∈∉⊂⊆∪∩∀∃αβγδεζηθικλμνξοπρστυφχψωΓΔΘΛΞΠΣΦΨΩ→←↔⇒⇔")
+SYMBOL_PUA_MAP = {
+    0xF044: "Δ", 0xF053: "Σ", 0xF057: "Ω", 0xF061: "α", 0xF062: "β",
+    0xF067: "γ", 0xF064: "δ", 0xF065: "ε", 0xF07A: "ζ", 0xF068: "η",
+    0xF071: "θ", 0xF06B: "κ", 0xF06C: "λ", 0xF06D: "μ", 0xF06E: "ν",
+    0xF070: "π", 0xF072: "ρ", 0xF073: "σ", 0xF074: "τ", 0xF066: "φ",
+    0xF063: "χ", 0xF079: "ψ", 0xF077: "ω", 0xF0B1: "±", 0xF0A3: "≤",
+    0xF0B3: "≥", 0xF0B4: "×", 0xF0B8: "÷", 0xF0BB: "≈", 0xF0B9: "≠",
+    0xF0A5: "∞", 0xF0B0: "°", 0xF0AE: "→", 0xF0AC: "←", 0xF0D7: "·",
+}
+
+
+def _decode_symbol_pua(txt: str, font_name: str) -> str:
+    """Decode Windows Symbol-font Private Use Area codepoints (U+F0xx) into standard Unicode symbols."""
+    if "symbol" not in font_name.lower():
+        return txt
+    return "".join(SYMBOL_PUA_MAP.get(ord(ch), ch) for ch in txt)
 
 
 def _span_text_with_scripts(spans: List[Dict[str, Any]]) -> Tuple[str, str, bool]:
@@ -83,7 +100,7 @@ def _span_text_with_scripts(spans: List[Dict[str, Any]]) -> Tuple[str, str, bool
     has_unreadable = False
 
     for s in spans:
-        txt = normalize_ligatures(s.get("text", ""))
+        txt = _decode_symbol_pua(normalize_ligatures(s.get("text", "")), str(s.get("font", "")))
         if not txt:
             continue
         defects = detect_encoding_defects(txt)
@@ -425,6 +442,9 @@ def _extract_tables_fitz(doc: Any, pages: List[int]) -> Dict[int, List[Dict[str,
                 data = tbl.extract() or []
                 clean_rows = _clean_table_rows([[normalize_ligatures(c or "").strip() for c in row] for row in data])
                 if len(clean_rows) >= 2 and len(clean_rows[0]) >= 2:
+                    avg_len = sum(len(c) for r in clean_rows for c in r) / max(1, sum(len(r) for r in clean_rows))
+                    if avg_len > 140.0:
+                        continue
                     by_page[pno].append({
                         "method": "pymupdf_find_tables",
                         "bbox": [round(float(x), 2) for x in tbl.bbox],
@@ -506,6 +526,188 @@ def _detect_unextracted_table_candidates(page: Any, extracted_tables: List[Dict[
     return candidates
 
 
+def _split_wide_multicolumn_lines(lines: List[Dict[str, Any]], pw: float) -> List[List[Dict[str, Any]]]:
+    """Split a wide MuPDF block into column-aligned line groups if MuPDF merged left & right columns."""
+    if len(lines) < 2:
+        return [lines]
+    mid_x = 0.5 * pw
+    left_lines: List[Dict[str, Any]] = []
+    right_lines: List[Dict[str, Any]] = []
+    for ln in lines:
+        bb = ln.get("bbox", [0, 0, 0, 0])
+        if bb[2] < mid_x + 4.0 and bb[0] < mid_x - 8.0:
+            left_lines.append(ln)
+        elif bb[0] > mid_x - 4.0 and bb[2] > mid_x + 8.0:
+            right_lines.append(ln)
+        else:
+            return [lines]  # True spanning line crosses midpoint
+    if left_lines and right_lines:
+        return [left_lines, right_lines]
+    return [lines]
+
+
+def _merge_split_equation_labels(blocks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Merge standalone right-aligned equation label blocks like '(1)' with the formula block to their left."""
+    used_indices: set[int] = set()
+    lbl_to_formula: Dict[int, int] = {}
+    for idx, b in enumerate(blocks):
+        if not PURE_EQ_LABEL_RE.match(b["raw_text"]):
+            continue
+        cy = 0.5 * (b["bbox"][1] + b["bbox"][3])
+        best_j = None
+        best_dx = 1e9
+        for j, cand in enumerate(blocks):
+            if j == idx or j in used_indices or PURE_EQ_LABEL_RE.match(cand["raw_text"]):
+                continue
+            ccy = 0.5 * (cand["bbox"][1] + cand["bbox"][3])
+            if abs(ccy - cy) <= 18.0 and cand["bbox"][2] <= b["bbox"][0] + 12.0 and len(cand["raw_text"]) <= 200:
+                dx = b["bbox"][0] - cand["bbox"][2]
+                if dx < best_dx:
+                    best_dx = dx
+                    best_j = j
+        if best_j is not None:
+            used_indices.add(idx)
+            lbl_to_formula[best_j] = idx
+
+    merged: List[Dict[str, Any]] = []
+    for idx, b in enumerate(blocks):
+        if idx in used_indices:
+            continue
+        if idx in lbl_to_formula:
+            lbl_blk = blocks[lbl_to_formula[idx]]
+            b = dict(b)
+            b["raw_text"] = f"{b['raw_text']} {lbl_blk['raw_text'].strip()}"
+            b["text"] = f"{b['text']} {lbl_blk['text'].strip()}"
+            b["bbox"] = merge_bbox([b["bbox"], lbl_blk["bbox"]])
+        merged.append(b)
+    return merged
+
+
+def _extract_printed_page_map(headers_footers: List[Dict[str, Any]], total_pages: int) -> Tuple[Dict[int, str], bool]:
+    """Extract printed page labels from headers/footers and flag non-sequential numbering discrepancies."""
+    label_map: Dict[int, str] = {}
+    numeric_seq: List[Tuple[int, int]] = []
+    for hf in headers_footers:
+        pno = int(hf["page"])
+        txt = hf["text"].strip()
+        m = re.search(r"(?:page|pp\.?|第)\s*(\d+)\b|^\s*[-–—]?\s*(\d{1,4})\s*[-–—]?\s*$", txt, re.I)
+        if m and pno not in label_map:
+            lbl = m.group(1) or m.group(2)
+            label_map[pno] = lbl
+            if lbl.isdigit():
+                numeric_seq.append((pno, int(lbl)))
+    discrepancy = False
+    if len(numeric_seq) >= 2:
+        numeric_seq.sort()
+        for (p1, n1), (p2, n2) in zip(numeric_seq, numeric_seq[1:]):
+            if (n2 - n1) != (p2 - p1):
+                discrepancy = True
+                break
+    return label_map, discrepancy
+
+
+def _extract_paper_metadata(blocks: List[Dict[str, Any]], sections: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Extract paper title, authors/affiliations, abstract, and keywords with block provenance."""
+    p1_blocks = [b for b in blocks if b["page"] == 1 and b["role"] not in ("caption", "footnote")]
+    if not p1_blocks:
+        return {}
+    top_blocks = [b for b in p1_blocks if b["bbox"][1] < 480.0 and len(b["raw_text"]) >= 4]
+    title_blk = max(top_blocks, key=lambda b: (b["font_size"], -b["bbox"][1])) if top_blocks else None
+
+    abstract_texts: List[str] = []
+    abstract_bids: List[str] = []
+    keywords_val: Optional[str] = None
+    keywords_bid: Optional[str] = None
+    authors: List[str] = []
+    author_bids: List[str] = []
+
+    if title_blk:
+        t_idx = next((i for i, b in enumerate(p1_blocks) if b["block_id"] == title_blk["block_id"]), 0)
+        for b in p1_blocks[t_idx + 1:]:
+            txt = b["raw_text"].strip()
+            if b["role"] == "heading" or re.match(r"^(?:Abstract|摘要|1\.?\s+Introduction)\b", txt, re.I):
+                break
+            if len(txt) <= 280:
+                authors.append(txt)
+                author_bids.append(b["block_id"])
+
+    in_abs = False
+    for b in blocks:
+        if b["page"] > 2:
+            break
+        txt = b["raw_text"].strip()
+        if re.match(r"^(?:Abstract|摘要)\s*[:：]?\s*$", txt, re.I):
+            in_abs = True
+            continue
+        if re.match(r"^(?:Abstract|摘要)\s*[:：]\s+\S+", txt, re.I):
+            abstract_texts.append(txt)
+            abstract_bids.append(b["block_id"])
+            in_abs = True
+            continue
+        if re.match(r"^(?:Keywords?|Index\s+Terms|关键词)\s*[:：]", txt, re.I):
+            keywords_val = txt
+            keywords_bid = b["block_id"]
+            in_abs = False
+            continue
+        if in_abs:
+            if b["role"] == "heading":
+                in_abs = False
+            else:
+                abstract_texts.append(txt)
+                abstract_bids.append(b["block_id"])
+                if len(abstract_texts) >= 3:
+                    in_abs = False
+
+    return {
+        "title": title_blk["raw_text"] if title_blk else None,
+        "title_block_id": title_blk["block_id"] if title_blk else None,
+        "authors_and_affiliations": authors or None,
+        "author_block_ids": author_bids or None,
+        "abstract": " ".join(abstract_texts) if abstract_texts else None,
+        "abstract_block_ids": abstract_bids or None,
+        "keywords": keywords_val,
+        "keywords_block_id": keywords_bid,
+    }
+
+
+def _build_merged_tables(structured_tables: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Combine cross-page continued tables into unified logical table entries."""
+    by_id = {t["table_id"]: t for t in structured_tables}
+    merged: List[Dict[str, Any]] = []
+    for t in structured_tables:
+        if t.get("continues_from"):
+            continue
+        if not t.get("continued_on"):
+            continue
+        chain = [t]
+        cur = t
+        while cur.get("continued_on") and cur["continued_on"] in by_id:
+            nxt = by_id[cur["continued_on"]]
+            if nxt in chain:
+                break
+            chain.append(nxt)
+            cur = nxt
+        rows = list(chain[0]["rows"])
+        for part in chain[1:]:
+            part_rows = part["rows"]
+            if part_rows and rows and part_rows[0] == rows[0]:
+                rows.extend(part_rows[1:])
+            else:
+                rows.extend(part_rows)
+        merged.append({
+            "merged_table_id": f"merged_{t['table_id']}",
+            "source_table_ids": [c["table_id"] for c in chain],
+            "pages": [c["page"] for c in chain],
+            "caption": t.get("caption"),
+            "num_rows": len(rows),
+            "num_cols": max((len(r) for r in rows), default=0),
+            "rows": rows,
+            "markdown": _rows_to_markdown(rows),
+            "html": _rows_to_html(rows),
+        })
+    return merged
+
+
 def _extract_with_fitz(pdf_path: Path, page_spec: Optional[str], caps: Dict[str, Any]) -> Dict[str, Any]:
     fitz = import_pymupdf()
 
@@ -516,11 +718,20 @@ def _extract_with_fitz(pdf_path: Path, page_spec: Optional[str], caps: Dict[str,
     total_pages = len(doc)
     pages = parse_page_spec(page_spec, total_pages)
 
+    # Pre-filter pages for expensive pdfplumber table scanning (efficiency boost on long papers)
+    plumber_pages: List[int] = []
+    for pno in pages:
+        page = doc[pno - 1]
+        if len(page.get_drawings()) >= 2 or re.search(r"\b(?:Table|Tab\.?)\s*\d+|表\s*\d+", page.get_text("text") or "", re.I):
+            plumber_pages.append(pno)
+
     # Table extraction (merge pdfplumber + fitz, keeping richer row/cell candidate on overlap)
-    tables_by_page = {p: [] for p in pages}
-    if caps["python_modules"].get("pdfplumber"):
+    tables_by_page: Dict[int, List[Dict[str, Any]]] = {p: [] for p in pages}
+    if caps["python_modules"].get("pdfplumber") and plumber_pages:
         try:
-            tables_by_page = _extract_tables_pdfplumber(pdf_path, pages)
+            plum_res = _extract_tables_pdfplumber(pdf_path, plumber_pages)
+            for pno, plist in plum_res.items():
+                tables_by_page[pno] = plist
         except Exception:
             pass
     fitz_tables = _extract_tables_fitz(doc, pages)
@@ -553,61 +764,66 @@ def _extract_with_fitz(pdf_path: Path, page_spec: Optional[str], caps: Dict[str,
         for blk in tdict.get("blocks", []):
             if blk.get("type") != 0:
                 continue
-            bb = [round(float(x), 2) for x in blk["bbox"]]
-            # Skip blocks completely inside extracted table boxes to avoid duplicating table text in body
-            in_table = any(bbox_contains_center(t["bbox"], bb, margin=2.0) for t in p_tables)
+            blk_lines = blk.get("lines", [])
+            bb_raw = [round(float(x), 2) for x in blk["bbox"]]
+            line_groups = _split_wide_multicolumn_lines(blk_lines, pw) if (bb_raw[2] - bb_raw[0]) >= 0.50 * pw else [blk_lines]
 
-            lines_info: List[Dict[str, Any]] = []
-            block_sizes: List[float] = []
-            bold_chars = 0
-            total_chars = 0
-            for ln in blk.get("lines", []):
-                spans = ln.get("spans", [])
-                raw_ln, fmt_ln, has_unr = _span_text_with_scripts(spans)
-                if not raw_ln.strip():
-                    continue
-                for sp in spans:
-                    stxt = sp.get("text", "").strip()
-                    if not stxt:
+            for grp_lines in line_groups:
+                grp_boxes = [ln.get("bbox") for ln in grp_lines if ln.get("bbox")]
+                bb = merge_bbox(grp_boxes) if grp_boxes else bb_raw
+                in_table = any(bbox_contains_center(t["bbox"], bb, margin=2.0) for t in p_tables)
+
+                lines_info: List[Dict[str, Any]] = []
+                block_sizes: List[float] = []
+                bold_chars = 0
+                total_chars = 0
+                for ln in grp_lines:
+                    spans = ln.get("spans", [])
+                    raw_ln, fmt_ln, has_unr = _span_text_with_scripts(spans)
+                    if not raw_ln.strip():
                         continue
-                    fs = round(float(sp.get("size", 10.0)), 1)
-                    block_sizes.extend([fs] * len(stxt))
-                    if not in_table:
-                        font_size_counter[fs] += len(stxt)
-                    total_chars += len(stxt)
-                    fname = str(sp.get("font", "")).lower()
-                    if (int(sp.get("flags", 0)) & 16) or "bold" in fname or "black" in fname:
-                        bold_chars += len(stxt)
-                lines_info.append({"raw_text": raw_ln, "fmt_text": fmt_ln, "has_unreadable": has_unr})
+                    for sp in spans:
+                        stxt = sp.get("text", "").strip()
+                        if not stxt:
+                            continue
+                        fs = round(float(sp.get("size", 10.0)), 1)
+                        block_sizes.extend([fs] * len(stxt))
+                        if not in_table:
+                            font_size_counter[fs] += len(stxt)
+                        total_chars += len(stxt)
+                        fname = str(sp.get("font", "")).lower()
+                        if (int(sp.get("flags", 0)) & 16) or "bold" in fname or "black" in fname:
+                            bold_chars += len(stxt)
+                    lines_info.append({"raw_text": raw_ln, "fmt_text": fmt_ln, "has_unreadable": has_unr})
 
-            if not lines_info:
-                continue
-            raw_text = _join_block_lines(lines_info, use_formatted=False)
-            fmt_text = _join_block_lines(lines_info, use_formatted=True)
-            if not raw_text:
-                continue
+                if not lines_info:
+                    continue
+                raw_text = _join_block_lines(lines_info, use_formatted=False)
+                fmt_text = _join_block_lines(lines_info, use_formatted=True)
+                if not raw_text:
+                    continue
 
-            dom_fs = statistics.median(block_sizes) if block_sizes else 10.0
-            is_bold = (bold_chars / max(1, total_chars)) >= 0.6
-            defects = detect_encoding_defects(raw_text)
+                dom_fs = statistics.median(block_sizes) if block_sizes else 10.0
+                is_bold = (bold_chars / max(1, total_chars)) >= 0.6
+                defects = detect_encoding_defects(raw_text)
 
-            is_edge_band = (bb[1] < 0.09 * ph or bb[3] > 0.91 * ph) and len(raw_text) <= 140
-            if is_edge_band and not in_table:
-                hf_key = normalize_header_footer_key(raw_text)
-                if hf_key:
-                    hf_counter[hf_key] += 1
-                    hf_pages.setdefault(hf_key, set()).add(pno)
+                is_edge_band = (bb[1] < 0.09 * ph or bb[3] > 0.91 * ph) and len(raw_text) <= 140
+                if is_edge_band and not in_table:
+                    hf_key = normalize_header_footer_key(raw_text)
+                    if hf_key:
+                        hf_counter[hf_key] += 1
+                        hf_pages.setdefault(hf_key, set()).add(pno)
 
-            page_blocks.append({
-                "page": pno,
-                "bbox": bb,
-                "raw_text": raw_text,
-                "text": fmt_text,
-                "font_size": round(dom_fs, 2),
-                "is_bold": is_bold,
-                "in_table": in_table,
-                "defects": defects,
-            })
+                page_blocks.append({
+                    "page": pno,
+                    "bbox": bb,
+                    "raw_text": raw_text,
+                    "text": fmt_text,
+                    "font_size": round(dom_fs, 2),
+                    "is_bold": is_bold,
+                    "in_table": in_table,
+                    "defects": defects,
+                })
 
         unextracted_tbls = _detect_unextracted_table_candidates(page, p_tables, pw)
         raw_pages.append({
@@ -662,7 +878,7 @@ def _extract_with_fitz(pdf_path: Path, page_spec: Optional[str], caps: Dict[str,
                 continue
             body_candidates.append(b)
 
-        ordered = _xy_cut_order(body_candidates, pw)
+        ordered = _merge_split_equation_labels(_xy_cut_order(body_candidates, pw))
         for idx, b in enumerate(ordered):
             bid = f"p{pno}_b{idx + 1}"
             b["block_id"] = bid
@@ -832,6 +1048,10 @@ def _extract_with_fitz(pdf_path: Path, page_spec: Optional[str], caps: Dict[str,
 
             structured_tables.append(entry)
 
+    merged_tables = _build_merged_tables(structured_tables)
+    metadata = _extract_paper_metadata(all_blocks, sections)
+    page_label_map, page_numbering_discrepancy = _extract_printed_page_map(headers_footers, total_pages)
+
     return {
         "file": str(pdf_path),
         "backend": "pymupdf",
@@ -839,10 +1059,14 @@ def _extract_with_fitz(pdf_path: Path, page_spec: Optional[str], caps: Dict[str,
         "page_count": total_pages,
         "extracted_pages": pages,
         "body_font_size": body_fs,
+        "metadata": metadata,
+        "page_label_map": page_label_map,
+        "page_numbering_discrepancy": page_numbering_discrepancy,
         "counts": {
             "blocks": len(all_blocks),
             "sections": len(sections),
             "tables": len(structured_tables),
+            "merged_tables": len(merged_tables),
             "captions": len(captions),
             "footnotes": len(footnotes),
             "equations": len(equations),
@@ -852,6 +1076,7 @@ def _extract_with_fitz(pdf_path: Path, page_spec: Optional[str], caps: Dict[str,
         },
         "sections": sections,
         "tables": structured_tables,
+        "merged_tables": merged_tables,
         "captions": captions,
         "footnotes": footnotes,
         "equations": equations,
@@ -1035,18 +1260,40 @@ def _render_markdown_outputs(doc_data: Dict[str, Any]) -> Tuple[str, str]:
         tbl_lines.append(t["markdown"])
         tbl_lines.append("")
 
+    if doc_data.get("merged_tables"):
+        tbl_lines.extend(["# Merged Cross-Page Tables", ""])
+        for mt in doc_data["merged_tables"]:
+            tbl_lines.append(
+                f"## {mt['merged_table_id']} (Pages {mt['pages']}, sources={mt['source_table_ids']}, {mt['num_rows']}x{mt['num_cols']})"
+            )
+            if mt.get("caption"):
+                tbl_lines.append(f"- Caption: {mt['caption']}")
+            tbl_lines.append("")
+            tbl_lines.append(mt["markdown"])
+            tbl_lines.append("")
+
     return "\n".join(md_lines), "\n".join(tbl_lines)
 
 
 def _render_outline(doc_data: Dict[str, Any]) -> str:
     """Generate compact outline.md index for low-token Agent navigation."""
+    meta = doc_data.get("metadata") or {}
     lines = [
         f"# Document Outline: {Path(doc_data['file']).name}",
         f"- Status: `{doc_data.get('status')}` | Backend: `{doc_data.get('backend')}` | Pages: `{doc_data.get('page_count')}`",
         f"- Counts: `{json.dumps(doc_data.get('counts', {}), ensure_ascii=False)}`",
-        "",
-        "## Sections",
     ]
+    if doc_data.get("page_numbering_discrepancy"):
+        lines.append(f"- **Page Numbering Discrepancy Detected**: `page_label_map={json.dumps(doc_data.get('page_label_map', {}), ensure_ascii=False)}`")
+    if meta.get("title"):
+        lines.extend(["", "## Metadata", f"- Title (`{meta.get('title_block_id')}`): {meta['title']}"])
+        if meta.get("authors_and_affiliations"):
+            lines.append(f"- Authors/Affiliations (`{meta.get('author_block_ids')}`): {' | '.join(meta['authors_and_affiliations'][:4])}")
+        if meta.get("keywords"):
+            lines.append(f"- Keywords (`{meta.get('keywords_block_id')}`): {meta['keywords']}")
+        if meta.get("abstract"):
+            lines.append(f"- Abstract (`{meta.get('abstract_block_ids')}`): {meta['abstract'][:320]}{'...' if len(meta['abstract']) > 320 else ''}")
+    lines.extend(["", "## Sections"])
     for s in doc_data.get("sections", []):
         indent = "  " * max(0, int(s.get("level", 1)) - 1)
         lines.append(f"{indent}- [{s['section_id']}] {s['title']} (p.{s['page_start']}, `{s['block_id']}`)")
@@ -1058,6 +1305,8 @@ def _render_outline(doc_data: Dict[str, Any]) -> str:
         cap = t.get("caption") or "(no caption)"
         cont = f" continues `{t['continues_from']}`" if t.get("continues_from") else ""
         lines.append(f"- `{t['table_id']}` (p.{t['page']}, {t['num_rows']}x{t['num_cols']}, {t['method']}{cont}): {cap}")
+    for mt in doc_data.get("merged_tables", []):
+        lines.append(f"- `{mt['merged_table_id']}` (merged pages {mt['pages']}, {mt['num_rows']}x{mt['num_cols']}, sources={mt['source_table_ids']})")
     if not doc_data.get("tables"):
         lines.append("- (none)")
 

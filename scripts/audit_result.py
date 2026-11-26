@@ -35,11 +35,17 @@ def _collect_required_fields(case_data: Dict[str, Any]) -> List[str]:
                 fields.extend(str(f) for f in req)
             else:
                 fields.extend(str(k) for k in contract["properties"].keys())
+        elif isinstance(contract.get("result_schema"), dict) and isinstance(contract["result_schema"].get("required"), list):
+            fields.extend(str(f) for f in contract["result_schema"]["required"])
         else:
-            # Treat non-meta keys as expected fields if contract is a flat template dict
-            meta_keys = {"format", "description", "notes", "schema_version", "file", "filename"}
-            for k in contract.keys():
-                if k not in meta_keys:
+            # Treat non-meta keys as expected fields only when contract looks like a flat field-type template
+            meta_keys = {
+                "format", "description", "notes", "schema_version", "file", "filename",
+                "deliverables", "files", "artifacts", "constraints", "evidence_requirements",
+                "primary_output", "rules", "example", "title", "type", "output_dir",
+            }
+            for k, v in contract.items():
+                if k not in meta_keys and not isinstance(v, dict):
                     fields.append(str(k))
     elif isinstance(contract, list):
         for item in contract:
@@ -54,7 +60,8 @@ def _walk_evidence_items(obj: Any, path: str = "$") -> List[Dict[str, Any]]:
     """Find dict objects that declare page/block_id/quote provenance."""
     found: List[Dict[str, Any]] = []
     if isinstance(obj, dict):
-        has_page = "page" in obj and isinstance(obj["page"], int)
+        page_val = obj.get("page") if isinstance(obj.get("page"), int) else (obj.get("page_number") if isinstance(obj.get("page_number"), int) else obj.get("source_page"))
+        has_page = isinstance(page_val, int)
         has_quote = any(k in obj and isinstance(obj[k], str) and obj[k].strip() for k in ("quote", "snippet", "excerpt", "evidence_text", "verbatim"))
         has_block = "block_id" in obj and isinstance(obj["block_id"], str)
         if has_page or has_quote or has_block:
@@ -122,7 +129,7 @@ def audit(
 
         for ev in _walk_evidence_items(result):
             item = ev["item"]
-            p = item.get("page")
+            p = item.get("page") if isinstance(item.get("page"), int) else (item.get("page_number") if isinstance(item.get("page_number"), int) else item.get("source_page"))
             bid = item.get("block_id")
             quote = next((item[k] for k in ("quote", "snippet", "excerpt", "evidence_text", "verbatim") if isinstance(item.get(k), str) and item[k].strip()), None)
 

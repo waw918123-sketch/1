@@ -54,12 +54,13 @@ This single command automatically:
 2. Probes encryption, page types (`native_text`, `complex_hybrid`, `scanned_or_image_only`, `garbled_encoding`), and column structure (`probe.json`).
 3. Reconstructs multi-column X-Y cut reading order, strips repeating headers/footers, classifies sections/captions/footnotes/equations/references, and extracts bordered, three-line, borderless, and cross-page continued tables (`document.json`, `reading_order.md`, `tables.md`, `outline.md`).
 4. Runs targeted 250 DPI rendering + OCR on scanned/garbled pages and unextracted defect/table crops (`ocr/ocr_results.json`).
-5. Writes `/app/work/case_brief.json` summarizing every input, contract field, and output path.
+5. Writes `/app/work/case_brief.json` summarizing every input (including `.docx`/`.xlsx`/`.pptx`/`.csv`/`.txt` attachments), contract field, diagnostic gain metrics, and output path.
 
-Then read `/app/work/parse/outline.md` (or `/app/work/doc_*/outline.md`) first—**never dump a huge `document.json` into context**—and use `query_doc.py` to pull exact blocks/tables with provenance:
+Then read `/app/work/case_brief.json` and `/app/work/parse/outline.md` (or `/app/work/doc_*/outline.md`) first—**never dump a huge `document.json` into context**—and use `query_doc.py` to pull exact blocks/tables with provenance:
 
 ```sh
 python3 "$SKILL_DIR/scripts/query_doc.py" --doc /app/work/parse/document.json --ocr /app/work/parse/ocr/ocr_results.json --query "<keyword_or_regex>"
+python3 "$SKILL_DIR/scripts/query_doc.py" --doc /app/work/parse/document.json --table tbl_1
 ```
 
 ---
@@ -95,12 +96,14 @@ python3 "$SKILL_DIR/scripts/pdf_extract.py" <input_pdf> --out-dir /app/work/pars
 ```
 
 Outputs in `/app/work/parse/`:
+- `outline.md` — compact map of extracted `metadata` (title/authors/abstract/keywords), `sections`, `tables`, `merged_tables`, `equations`, `page_label_map`, and `unextracted_regions`
 - `reading_order.md` — blocks in true reading order tagged with `[p{page}_b{idx}|col{col}|{role}|bbox=[...]]`
-- `document.json` — full structured tree (`sections`, `tables`, `captions`, `footnotes`, `equations`, `references`, `headers_footers`, `unextracted_regions`, `blocks`)
-- `tables.md` & `tables.json` — extracted tables in Markdown + HTML (`colspan`), with `continues_from`/`continued_on` cross-page links
+- `document.json` — full structured tree (`metadata`, `page_label_map`, `page_numbering_discrepancy`, `sections`, `tables`, `merged_tables`, `captions`, `footnotes`, `equations`, `references`, `headers_footers`, `unextracted_regions`, `blocks`)
+- `tables.md` & `tables.json` — extracted tables in Markdown + HTML (`colspan`), with `continues_from`/`continued_on` links and unified `merged_tables` views
 
 Key rules when reading these outputs:
 - Check `unextracted_regions` in `document.json`: these mark encoding defects (`\ufffd`, `cid:`, PUA) or unparsed horizontal-rule tables. **Never guess `[UNREADABLE_DEFECT]` text**; inspect via Stage 4.
+- If `page_numbering_discrepancy: true`, always cite both 1-based physical PDF `page` and printed label (`page_label_map`).
 - For complex merged headers, three-line tables, and cross-page continuations, consult [references/layout-and-tables.md](./references/layout-and-tables.md).
 
 ### Stage 4 — Targeted Rendering, OCR & Visual Verification

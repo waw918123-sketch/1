@@ -25,6 +25,7 @@ def main() -> int:
     blocks = doc.get("blocks", [])
     sections = doc.get("sections", [])
     tables = doc.get("tables", [])
+    merged_tables = doc.get("merged_tables", [])
 
     # Map block_id -> active section title
     sec_by_block = {s["block_id"]: s["title"] for s in sections if s.get("block_id")}
@@ -35,8 +36,10 @@ def main() -> int:
         b["_section"] = current_sec
 
     if args.table:
-        matched_tables = [t for t in tables if t.get("table_id") == args.table or args.table.lower() in str(t.get("caption") or "").lower()]
-        print(json.dumps({"tables": matched_tables}, ensure_ascii=False, indent=2))
+        q_low = args.table.lower()
+        matched_tables = [t for t in tables if t.get("table_id") == args.table or q_low in str(t.get("caption") or "").lower()]
+        matched_merged = [m for m in merged_tables if m.get("merged_table_id") == args.table or q_low in str(m.get("caption") or "").lower() or args.table in m.get("source_table_ids", [])]
+        print(json.dumps({"tables": matched_tables, "merged_tables": matched_merged}, ensure_ascii=False, indent=2))
         return 0
 
     pat = re.compile(args.query, re.I) if args.query else None

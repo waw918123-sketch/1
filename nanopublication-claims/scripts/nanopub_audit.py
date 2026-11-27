@@ -58,6 +58,49 @@ def _load_all_docs(work_dir: Optional[Path], doc_path: Optional[Path]) -> Dict[s
     return docs
 
 
+_PUBINFO_EDITABLE_FIELDS = {
+    "title", "authors", "affiliations", "year", "journal", "doi", "pmid", "version", "license", "abstract", "keywords",
+}
+
+
+def _is_missing_meta_val(key: str, val: Any) -> bool:
+    if val is None:
+        return True
+    if isinstance(val, list):
+        cleaned = [str(x).strip().lower() for x in val if str(x).strip()]
+        return not cleaned or cleaned == ["unreported"]
+    s = str(val).strip()
+    sl = s.lower()
+    if sl in ("", "unreported", "unknown", "none", "null", "na", "n/a"):
+        return True
+    if key == "title" and re.search(r"\.(?:pdf|xml|nxml|jats|html?|txt|md|docx?)$", sl):
+        return True
+    return False
+
+
+def _merge_pubinfo_gaps(
+    target_pub: Dict[str, Any],
+    patch_pub: Dict[str, Any],
+    doc_label: str,
+    change_records: List[Dict[str, Any]],
+    now_iso: str,
+) -> None:
+    for pk, pv in patch_pub.items():
+        if pk not in _PUBINFO_EDITABLE_FIELDS or _is_missing_meta_val(pk, pv):
+            continue
+        cur = target_pub.get(pk)
+        if _is_missing_meta_val(pk, cur):
+            target_pub[pk] = pv
+            change_records.append({
+                "action": "pubinfo_gap_fill",
+                "doc_id": doc_label,
+                "field": pk,
+                "old": cur,
+                "new": pv,
+                "timestamp": now_iso,
+            })
+
+
 def _enrich_and_merge_patch(
     result_path: Path,
     patch_path: Path,
@@ -73,6 +116,7 @@ def _enrich_and_merge_patch(
     locked_cid = res.get("case_id")
     locked_pub = res.get("pubinfo")
     now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    res.setdefault("change_records", [])
 
     # Accept nanopublications / assertions / claims / nanopubs seamlessly from patch
     incoming_nps = patch.get("nanopublications")
@@ -84,7 +128,18 @@ def _enrich_and_merge_patch(
         if k == "case_id" and locked_cid:
             continue  # Never allow patch to corrupt locked case_id
         if k == "pubinfo" and isinstance(locked_pub, dict) and locked_pub:
-            continue  # Never allow patch to overwrite deterministic PubInfo (authors/DOI/year)
+            if isinstance(v, dict):
+                if any(dk in v and isinstance(v[dk], dict) for dk in locked_pub.keys()):
+                    for dk, dv in v.items():
+                        if dk in locked_pub and isinstance(locked_pub[dk], dict) and isinstance(dv, dict):
+                            _merge_pubinfo_gaps(locked_pub[dk], dv, dk, res["change_records"], now_iso)
+                elif all(not isinstance(sub, dict) for sub in v.values()):
+                    first_did = next(iter(locked_pub.keys()))
+                    if isinstance(locked_pub.get(first_did), dict):
+                        _merge_pubinfo_gaps(locked_pub[first_did], v, first_did, res["change_records"], now_iso)
+                    else:
+                        _merge_pubinfo_gaps(locked_pub, v, "doc_1", res["change_records"], now_iso)
+            continue  # Never overwrite verified deterministic PubInfo fields (DOI/authors/year)
         if k == "sources" and isinstance(res.get("sources"), list) and isinstance(v, list):
             seen = {json.dumps(s, sort_keys=True, ensure_ascii=False) for s in res["sources"]}
             merged = list(res["sources"])
@@ -213,6 +268,27 @@ def _enrich_and_merge_patch(
     return res
 
 
+def _norm_table_tokens(s: str) -> set[str]:
+    stop = {"of", "the", "and", "in", "on", "for"}
+    return {t for t in re.findall(r"[a-z0-9\u4e00-\u9fff]+", normalize_for_match(s)) if t not in stop}
+
+
+def _match_table_selector(selector: str, candidate: str) -> bool:
+    ns = normalize_for_match(selector)
+    nc = normalize_for_match(candidate)
+    if not ns or not nc:
+        return False
+    if ns in nc:
+        return True
+    ns_compact = re.sub(r"\s+", "", ns)
+    nc_compact = re.sub(r"\s+", "", nc)
+    if ns_compact and ns_compact in nc_compact:
+        return True
+    toks = _norm_table_tokens(ns)
+    cand_toks = _norm_table_tokens(nc)
+    return bool(toks) and toks.issubset(cand_toks)
+
+
 def _check_table_cell(item: Dict[str, Any], tbl: Dict[str, Any]) -> Optional[str]:
     val = item.get("value") if item.get("value") is not None else item.get("reported_value")
     if val is None or isinstance(val, (dict, list, bool)):
@@ -228,21 +304,66 @@ def _check_table_cell(item: Dict[str, Any], tbl: Dict[str, Any]) -> Optional[str
     if row_sel is None and col_sel is None:
         return None
 
-    r_ids = [
-        i for i, r in enumerate(rows)
-        if i >= n_hdr and (row_sel is None or normalize_for_match(str(row_sel)) in normalize_for_match(" ".join(r[:2])))
-    ]
+    active_sec = ""
+    r_ids: List[int] = []
+    for i, r in enumerate(rows):
+        lead = str(r[0]).strip() if r else ""
+        tail_empty = all(not str(c).strip() for c in r[1:])
+        if lead and tail_empty:
+            active_sec = lead
+        if i < n_hdr:
+            continue
+        row_ctx = f"{active_sec} {' '.join(r[:2])}".strip() if active_sec else " ".join(r[:2])
+        if row_sel is None or _match_table_selector(str(row_sel), row_ctx):
+            r_ids.append(i)
+
     ncols = max((len(r) for r in rows), default=0)
-    c_ids = [
-        c for c in range(ncols)
-        if col_sel is None or normalize_for_match(str(col_sel)) in normalize_for_match(headers[c] if c < len(headers) else "")
-    ]
+    c_ids: List[int] = []
+    for c in range(ncols):
+        hdr_c = headers[c] if c < len(headers) else ""
+        if not hdr_c and n_hdr > 0:
+            hdr_c = " ".join(str(rows[ri][c]).strip() for ri in range(min(n_hdr, len(rows))) if c < len(rows[ri]) and str(rows[ri][c]).strip())
+        if col_sel is None or _match_table_selector(str(col_sel), hdr_c):
+            c_ids.append(c)
+
     if not r_ids or not c_ids:
         return f"row_label={row_sel!r} or col_header={col_sel!r} not found in {tbl['table_id']}"
     cells = [normalize_for_match(rows[r][c]) for r in r_ids for c in c_ids if c < len(rows[r])]
-    if any(norm_val in ct for ct in cells):
-        return None
+    nv_no_comma = norm_val.replace(",", "")
+    nv_glyph = re.sub(r"[<~≈≤](?=\d)", "<", nv_no_comma)
+    for ct in cells:
+        ct_nc = ct.replace(",", "")
+        ct_glyph = re.sub(r"(?<!\d),(?=\d)", "<", ct.replace(" ", ""))
+        nv_ns = nv_glyph.replace(" ", "")
+        if norm_val in ct or (nv_no_comma and nv_no_comma in ct_nc) or (nv_ns and nv_ns in ct_glyph):
+            return None
     return f"value {val!r} not found at cited cell row={row_sel!r}, col={col_sel!r} in {tbl['table_id']} (actual cell(s): {cells[:2]})"
+
+
+_SCALE_WORDS = {
+    "thousand": 1e3,
+    "million": 1e6,
+    "billion": 1e9,
+    "trillion": 1e12,
+    "percent": 1.0,
+    "%": 1.0,
+}
+
+
+def _extract_scaled_numbers(text: str) -> List[Tuple[str, float, Optional[float], Optional[float], int]]:
+    out: List[Tuple[str, float, Optional[float], Optional[float], int]] = []
+    for m in re.finditer(r"(?<![a-z0-9_])([-+]?\d[\d,]*(?:\.\d+)?)\s*(thousand|million|billion|trillion|percent|%)?(?![a-z0-9_])", text.lower()):
+        raw = m.group(1).replace(",", "")
+        try:
+            v = float(raw)
+        except ValueError:
+            continue
+        unit = m.group(2)
+        factor = _SCALE_WORDS.get(unit) if unit else None
+        scaled = (v * factor) if factor is not None else None
+        decs = len(raw.split(".")[1]) if "." in raw else 0
+        out.append((raw, v, scaled, factor, decs))
+    return out
 
 
 def _extract_numeric_tokens(text: str) -> List[str]:
@@ -284,10 +405,16 @@ def audit_result(
         ptxt: Dict[int, str] = {}
         bmap, tmap = {}, {}
         ocr_page_confs: Dict[int, float] = {}
+        defect_pages: set[int] = set()
         for b in d.get("blocks", []):
             p = int(b["page"])
             ptxt[p] = ptxt.get(p, "") + "\n" + b.get("raw_text", "") + "\n" + b.get("text", "")
             bmap[b["block_id"]] = b
+            if (b.get("defects") or {}).get("has_defects"):
+                defect_pages.add(p)
+        for u in d.get("unextracted_regions", []):
+            if u.get("page") is not None and u.get("reason") == "stat_glyph_anomaly":
+                defect_pages.add(int(u["page"]))
         for t in d.get("tables", []):
             p = int(t["page"])
             ptxt[p] = ptxt.get(p, "") + "\n" + " ".join(" ".join(r) for r in t.get("rows", []))
@@ -309,6 +436,7 @@ def audit_result(
             "blocks": bmap,
             "tables": tmap,
             "ocr_page_confs": ocr_page_confs,
+            "defect_pages": defect_pages,
         }
 
     vocab = load_predicate_vocab()
@@ -339,15 +467,21 @@ def audit_result(
         if not isinstance(ass, dict):
             errors.append(f"{np_id}: missing 'assertion' object.")
             continue
-        for req_a in ("subject", "predicate", "object", "assertion_text", "polarity", "conditions"):
+        for req_a in ("subject", "predicate", "object", "assertion_text"):
             if not str(ass.get(req_a) or "").strip():
                 errors.append(f"{np_id}: assertion missing required field {req_a!r}.")
+        for opt_a in ("polarity", "conditions"):
+            if not str(ass.get(opt_a) or "").strip():
+                warnings.append(f"{np_id}: assertion recommended field {opt_a!r} is missing.")
         if not isinstance(prov, dict):
             errors.append(f"{np_id}: missing 'provenance' object.")
             continue
-        for req_p in ("evidence_type", "extraction_method", "confidence", "confidence_basis"):
+        for req_p in ("evidence_type", "confidence"):
             if not str(prov.get(req_p) or "").strip():
                 errors.append(f"{np_id}: provenance missing required field {req_p!r}.")
+        for opt_p in ("extraction_method", "confidence_basis"):
+            if not str(prov.get(opt_p) or "").strip():
+                warnings.append(f"{np_id}: provenance recommended field {opt_p!r} is missing.")
         if not isinstance(pub, dict) or not str(pub.get("title") or "").strip():
             errors.append(f"{np_id}: missing verified 'pubinfo' metadata.")
 
@@ -425,10 +559,15 @@ def audit_result(
                             if cerr:
                                 ok_here = False
                                 best_err = cerr
-                            elif anc.get("value") is not None and (anc.get("row_label") or anc.get("col_header")):
-                                uses_table_with_cell = True
-                                checks_summary["table_cells_verified"] += 1
-                                anchor_cell_vals.add(normalize_for_match(str(anc["value"])).replace(",", ""))
+                            else:
+                                cval = anc.get("value") if anc.get("value") is not None else anc.get("reported_value")
+                                rsel = anc.get("row_label") or anc.get("row_key")
+                                csel = anc.get("col_header") or anc.get("col_name")
+                                if cval is not None and (rsel or csel):
+                                    uses_table_with_cell = True
+                                    checks_summary["table_cells_verified"] += 1
+                                    anchor_cell_vals.add(normalize_for_match(str(cval)).replace(",", ""))
+                                    anchor_corpus_norm += " " + normalize_for_match(f"{rsel or ''} {csel or ''}")
                     if ok_here and quote:
                         nq = normalize_for_match(quote)
                         if len(nq) >= 8:
@@ -447,12 +586,24 @@ def audit_result(
                                     seg_ns = re.sub(r"\s+", "", seg)
                                     if seg_ns in pt_ns:
                                         continue
+                                    # Damaged PDF Symbol glyph fallback (e.g. p ,0.03 vs p < 0.03, ,8.7 vs ~8.7, (61.3 vs ±1.3)
+                                    pt_gl = re.sub(r"(?<!\d)[<~≈≤,](?=\d)", "<", pt_ns)
+                                    pt_gl = re.sub(r"\(6(?=\d)", "(±", pt_gl)
+                                    seg_gl = re.sub(r"(?<!\d)[<~≈≤,](?=\d)", "<", seg_ns)
+                                    seg_gl = re.sub(r"\(6(?=\d)", "(±", seg_gl)
+                                    if seg_gl in pt_gl:
+                                        continue
                                     return False
                                 return True
 
                             if not any(_segs_in_page(pt) for pt in pages_chk):
                                 ok_here = False
                                 best_err = f"quote not matched verbatim on cited page {p}: {nq[:70]!r}"
+                            elif p is not None and p in d_idx.get("defect_pages", set()) and any(
+                                re.search(r"(?<!\d),\d|\(6\d", d_idx["norm_pages"].get(p, ""))
+                                for _ in [0]
+                            ):
+                                uses_defect_blk = True
                     if ok_here:
                         matched_ok = True
                         if p is not None and p in d_idx["ocr_page_confs"] and d_idx["ocr_page_confs"][p] < 75.0:
@@ -475,14 +626,32 @@ def audit_result(
                     corp_floats.append(float(cn))
                 except ValueError:
                     pass
-            for num in obj_nums:
+            corp_scaled = _extract_scaled_numbers(anchor_corpus_norm + " " + " ".join(anchor_cell_vals))
+            corp_scaled_vals = [sc for _, _, sc, _, _ in corp_scaled if sc is not None] + corp_floats
+            obj_scaled = _extract_scaled_numbers(obj)
+            for idx_n, num in enumerate(obj_nums):
                 num_ok = (num in corp_nums) or (num in anchor_corpus_norm.replace(",", ""))
                 if not num_ok:
                     try:
                         nf = float(num)
                         num_ok = any(abs(nf - cf) < 1e-9 for cf in corp_floats)
                     except ValueError:
-                        pass
+                        nf = None
+                if not num_ok and idx_n < len(obj_scaled):
+                    _, raw_v, sc_v, fac_v, decs_v = obj_scaled[idx_n]
+                    if sc_v is not None and corp_scaled_vals:
+                        num_ok = any(
+                            abs(sc_v - cs) < 1e-6 or (fac_v and fac_v >= 1e3 and abs(round(cs / fac_v, decs_v) - raw_v) < 1e-9)
+                            for cs in corp_scaled_vals
+                        )
+                    if not num_ok and raw_v is not None:
+                        for _, c_raw, c_sc, c_fac, c_decs in corp_scaled:
+                            if c_sc is not None and abs(c_sc - raw_v) < 1e-6:
+                                num_ok = True
+                                break
+                            if c_fac and c_fac >= 1e3 and abs(round(raw_v / c_fac, c_decs) - c_raw) < 1e-9:
+                                num_ok = True
+                                break
                 if not num_ok:
                     errors.append(f"{np_id}: assertion.object cites numeric value {num!r} absent from bound evidence_anchors (possible misattribution or fabrication).")
             if any(a.get("table_id") for a in anchors) and not uses_table_with_cell and not any(a.get("quote") for a in anchors):

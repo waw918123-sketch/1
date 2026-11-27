@@ -40,7 +40,7 @@ done
 
 ### Stage 1 — Prepare, Lock PubInfo & Initialize Baseline Result
 
-Run `prep_nanopub.py` once upfront to ingest all inputs, detect damaged statistical glyphs (e.g., `p ,0.03`), run targeted OCR/crops (`<= 4` pages/crops), write compact `nanopub_brief.json` (`<= 16 KB`), and lock baseline `/app/output/result.json`:
+Run `prep_nanopub.py` once upfront to ingest all inputs (`.pdf`, `.xml`/`.jats`, `.html`, `.md`/`.txt`, Office), detect damaged statistical glyphs (e.g., `p ,0.03`, `,8.7 million`), render targeted OCR/crops (`<= 4`), write compact `nanopub_brief.json` (`task_md_preview`, `section_tree`, `table_index`, `stat_anomalies`, `rendered_crops`, `doc_dir_name`), and lock baseline `/app/output/result.json`:
 
 ```sh
 mkdir -p /app/work /app/output
@@ -50,11 +50,11 @@ python3 "$SKILL_DIR/scripts/prep_nanopub.py" \
   --init-result /app/output/result.json
 ```
 
-Inspect `/app/work/nanopub_brief.json` and `/app/work/doc_1/outline.md`. If `status == "blocked"` (encrypted/corrupt input), record the block honestly in `/app/output/result.json` and stop.
+Inspect `/app/work/nanopub_brief.json` first. If `task_md_truncated` is `true` (or to verify exact schemas), read `/input/task.md` and `/input/case.json` in full. For full block/section details, read `/app/work/<doc_dir_name>/outline.md` (note multi-doc folders are named `doc_1_<stem>`, `doc_2_<stem>`). If `status == "blocked"`, record the block in `/app/output/result.json` and stop. If any extracted `pubinfo` field is still `"unreported"`, you may supply the corrected field in `/app/work/patch.json`'s `pubinfo`.
 
 ### Stage 2 — Targeted Chunk, Cue & Table-Row Retrieval
 
-Never dump entire `document.json` or expand huge tables into context. Read `section_chunks/` sequentially and query targeted cues or individual tables (`--row` filters large tables):
+Never dump entire `document.json` or expand huge tables into context. Read `section_chunks/` sequentially (prioritizing Abstract, Results, Conclusions, Tables, Methods) and query targeted cues or tables (`--doc-id doc_2` when `document_count > 1`, `--row` filters large tables):
 
 ```sh
 python3 "$SKILL_DIR/scripts/query_nanopub.py" --work-dir /app/work --chunk chunk_001
@@ -62,11 +62,11 @@ python3 "$SKILL_DIR/scripts/query_nanopub.py" --work-dir /app/work --claim-cues 
 python3 "$SKILL_DIR/scripts/query_nanopub.py" --work-dir /app/work --table tbl_1 --row "Total"
 ```
 
-Consult [references/nanopub-schema.md](./references/nanopub-schema.md) for required fields and [references/decomposition-and-evidence.md](./references/decomposition-and-evidence.md) for splitting and causal rules.
+When `stat_anomalies` appear (e.g., `p ,0.03` or `,8.7 million` from PDF Symbol/font mapping errors), inspect the rendered PNGs in `rendered_crops` or `ocr_results.json` rather than guessing; log unresolved ambiguities in `human_review_items[]`. For table-backed claims, bind `table_id`, `row_label` (include section subheader like `"Eukaryotes Total"` if rows repeat), `col_header` (e.g. `"Earth / Predicted"`), and exact `value`. Consult [references/nanopub-schema.md](./references/nanopub-schema.md) and [references/decomposition-and-evidence.md](./references/decomposition-and-evidence.md).
 
-### Stage 3 — Compact Patch Merge, Strict 5-Pillar Audit & TriG/JSON-LD Export
+### Stage 3 — Early Patch Merge, Strict 5-Pillar Audit & TriG/JSON-LD Export
 
-Write `/app/work/patch.json` containing `status`, `nanopublications` (plus any `output_contract` fields, `conflicts`, `human_review_items`, `uncertainty`). Omit repetitive `pubinfo`/`nanopub_uri`/`quote_sha256` fields—`nanopub_audit.py` injects them deterministically from locked `document.json`—and merge/audit/export in one command (for long papers, merge incrementally after every 1–2 chunks with `"append_nanopubs": true`):
+Save early and iterate: write `/app/work/patch.json` right after extracting Abstract + core Results/Tables (`"status": "completed"`, `"nanopublications"`, `"sources"`, `"conflicts"`, `"human_review_items"`, `"uncertainty"`, plus answers to ALL questions/fields requested by `/input/task.md` & `output_contract`). Omit repetitive `pubinfo`/`nanopub_uri`/`quote_sha256` inside each nanopub—`nanopub_audit.py` injects them deterministically—then append additional chunks using `"append_nanopubs": true`:
 
 ```sh
 python3 "$SKILL_DIR/scripts/nanopub_audit.py" \

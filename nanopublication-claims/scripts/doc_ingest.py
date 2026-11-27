@@ -12,6 +12,7 @@ Key design choices for Harbor budget conservation:
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import re
 import sys
@@ -262,6 +263,15 @@ def _ingest_text_or_office(file_path: Path) -> Dict[str, Any]:
     raw_lines: List[str] = []
     if ext in (".txt", ".md", ".csv", ".tsv", ".json", ".yaml", ".yml"):
         raw_lines = file_path.read_text(encoding="utf-8", errors="replace").splitlines()
+    elif ext in (".html", ".htm"):
+        raw_html = file_path.read_text(encoding="utf-8", errors="replace")
+        raw_html = re.sub(r"(?is)<(script|style|noscript)[^>]*>.*?</\1>", " ", raw_html)
+        raw_html = re.sub(r"(?i)<title[^>]*>(.*?)</title>", lambda m: f"# {re.sub(r'<[^>]+>', ' ', m.group(1)).strip()}\n\n", raw_html)
+        raw_html = re.sub(r"(?i)<h[1-6][^>]*>(.*?)</h[1-6]>", lambda m: f"\n\n# {re.sub(r'<[^>]+>', ' ', m.group(1)).strip()}\n\n", raw_html)
+        raw_html = re.sub(r"(?i)</?(?:p|div|li|tr|section|article|br)\b[^>]*>", "\n", raw_html)
+        raw_html = re.sub(r"(?i)</t[dh]>", "\t", raw_html)
+        plain = html.unescape(re.sub(r"<[^>]+>", " ", raw_html))
+        raw_lines = [re.sub(r"[ \t]+", " ", ln).strip() for ln in plain.splitlines()]
     elif ext in (".docx", ".pptx", ".xlsx"):
         with zipfile.ZipFile(file_path, "r") as zf:
             xmls = sorted(

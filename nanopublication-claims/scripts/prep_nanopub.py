@@ -16,7 +16,8 @@ from doc_ingest import ingest_document
 from pdf_ocr import render_and_ocr
 
 SUPPORTED_EXTS = {
-    ".pdf", ".xml", ".nxml", ".jats", ".md", ".txt", ".csv", ".tsv", ".json", ".yaml", ".yml",
+    ".pdf", ".xml", ".nxml", ".jats", ".html", ".htm",
+    ".md", ".txt", ".csv", ".tsv", ".json", ".yaml", ".yml",
     ".docx", ".pptx", ".xlsx",
 }
 
@@ -115,7 +116,7 @@ def _build_initial_result(case_data: Dict[str, Any], docs_info: List[Dict[str, A
     }
     for f in req_fields:
         if f not in res:
-            res[f] = [] if f in ("assertions", "claims", "nanopubs", "answers", "nanopublications", "conflicts", "sources", "human_review_items") else None
+            res[f] = [] if f in ("assertions", "claims", "nanopubs", "answers", "question_answers", "direct_answers", "nanopublications", "conflicts", "sources", "human_review_items") else None
     return res
 
 
@@ -162,36 +163,96 @@ def run_prep(
         slug = f"{doc_id}_{fpath.stem}" if len(files) > 1 else "doc_1"
         doc_dir = work_dir / slug
         info = ingest_document(fpath, doc_dir, doc_id=doc_id, max_chunk_chars=max_chunk_chars)
+        info["doc_dir_name"] = doc_dir.name
 
-        if info.get("status") == "ok" and fpath.suffix.lower() == ".pdf":
-            summ = info.get("probe_summary") or {}
-            need_pages = sorted(set((summ.get("scanned_pages") or []) + (summ.get("garbled_pages") or [])))[:max_ocr_pages]
+        if info.get("status") == "ok" and info.get("document_json_path"):
             doc_obj = json.loads(Path(info["document_json_path"]).read_text(encoding="utf-8"))
-            anomaly_crops = [
-                f"{u['page']}:{u['bbox'][0]},{u['bbox'][1]},{u['bbox'][2]},{u['bbox'][3]}"
-                for u in doc_obj.get("unextracted_regions", [])
-                if u.get("reason") == "stat_glyph_anomaly" and u.get("bbox") and any(float(x) > 0 for x in u["bbox"])
-            ][:max_crops]
-            if need_pages or anomaly_crops:
-                ocr_res = render_and_ocr(
-                    fpath,
-                    doc_dir / "ocr",
-                    page_spec=",".join(str(p) for p in need_pages) if need_pages else None,
-                    dpi=250,
-                    crops=anomaly_crops,
-                    ocr_mode="auto",
-                )
-                info["ocr_results_path"] = str(doc_dir / "ocr" / "ocr_results.json")
-                info["ocr_engine_used"] = ocr_res.get("ocr_engine_used")
-                info["ocr_rendered_count"] = ocr_res.get("rendered_count", 0)
+            info["section_tree"] = [
+                {
+                    "id": s.get("section_id"),
+                    "title": (s.get("title") or "")[:90],
+                    "pages": [s.get("page_start"), s.get("page_end")],
+                }
+                for s in doc_obj.get("sections", [])[:25]
+            ]
+            info["table_index"] = [
+                {
+                    "table_id": t.get("table_id"),
+                    "page": t.get("page"),
+                    "rows": len(t.get("rows") or []),
+                    "cols": max((len(r) for r in (t.get("rows") or [])), default=0),
+                    "headers": (t.get("headers") or [])[:10],
+                    "caption": (t.get("caption") or "")[:140],
+                }
+                for t in doc_obj.get("tables", [])[:20]
+            ]
+            stat_anoms = []
+            seen_sa_bids = set()
+            for u in doc_obj.get("unextracted_regions", []):
+                if u.get("reason") == "stat_glyph_anomaly":
+                    bid = u.get("block_id")
+                    seen_sa_bids.add(bid)
+                    stat_anoms.append({
+                        "page": u.get("page"),
+                        "block_id": bid,
+                        "anomalies": (u.get("defects") or {}).get("stat_glyph_anomalies") or [],
+                    })
+            for b in doc_obj.get("blocks", []):
+                bid = b.get("block_id")
+                sa = (b.get("defects") or {}).get("stat_glyph_anomalies") or []
+                if sa and bid not in seen_sa_bids:
+                    seen_sa_bids.add(bid)
+                    stat_anoms.append({
+                        "page": b.get("page"),
+                        "block_id": bid,
+                        "anomalies": sa,
+                    })
+            stat_anoms = stat_anoms[:12]
+            if stat_anoms:
+                info["stat_anomalies"] = stat_anoms
+
+            if fpath.suffix.lower() == ".pdf":
+                summ = info.get("probe_summary") or {}
+                need_pages = sorted(set((summ.get("scanned_pages") or []) + (summ.get("garbled_pages") or [])))[:max_ocr_pages]
+                anomaly_crops = [
+                    f"{u['page']}:{u['bbox'][0]},{u['bbox'][1]},{u['bbox'][2]},{u['bbox'][3]}"
+                    for u in doc_obj.get("unextracted_regions", [])
+                    if u.get("reason") == "stat_glyph_anomaly" and u.get("bbox") and any(float(x) > 0 for x in u["bbox"])
+                ][:max_crops]
+                if need_pages or anomaly_crops:
+                    ocr_res = render_and_ocr(
+                        fpath,
+                        doc_dir / "ocr",
+                        page_spec=",".join(str(p) for p in need_pages) if need_pages else None,
+                        dpi=250,
+                        crops=anomaly_crops,
+                        ocr_mode="auto",
+                    )
+                    info["ocr_results_path"] = str(doc_dir / "ocr" / "ocr_results.json")
+                    info["ocr_engine_used"] = ocr_res.get("ocr_engine_used")
+                    info["ocr_rendered_count"] = ocr_res.get("rendered_count", 0)
+                    rendered_crops = [
+                        {
+                            "page": it.get("page"),
+                            "kind": it.get("kind"),
+                            "path": it.get("image_path"),
+                            "ocr_text": (it.get("ocr") or {}).get("text"),
+                        }
+                        for it in (ocr_res.get("rendered") or [])
+                        if it.get("image_path")
+                    ][:8]
+                    if rendered_crops:
+                        info["rendered_crops"] = rendered_crops
         docs_info.append(info)
 
-    contract = case_data.get("output_contract") or case_data.get("output_schema") or case_data.get("expected_output")
+    contract = case_data.get("output_contract") or case_data.get("output_schema") or case_data.get("expected_output") or case_data.get("schema")
+    task_txt = task_path.read_text(encoding="utf-8", errors="replace") if task_path.exists() else ""
     brief = {
         "case_id": case_data.get("case_id"),
         "has_case_json": case_path.exists(),
         "has_task_md": task_path.exists(),
-        "task_md_preview": task_path.read_text(encoding="utf-8", errors="replace")[:1000] if task_path.exists() else None,
+        "task_md_preview": task_txt[:2500] if task_txt else None,
+        "task_md_truncated": len(task_txt) > 2500,
         "output_contract": contract,
         "required_fields": collect_contract_keys(contract),
         "document_count": len(docs_info),

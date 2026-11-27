@@ -77,7 +77,7 @@ python3 scripts/benchmark_suite.py
 
 ## 适用范围与已知限制
 
-- **适用范围**：单篇或多篇中英文科研论文（PDF、JATS/PLOS XML、Markdown/TXT、DOCX/XLSX/PPTX），支持双栏/多栏版式、三线表/跨页续表、统计结果与跨章节/跨论文断言去重与冲突检测。
+- **适用范围**：单篇或多篇中英文科研论文（PDF、JATS/PLOS XML、HTML、Markdown/TXT、DOCX/XLSX/PPTX），支持双栏/多栏版式、三线表/跨页续表、统计结果与跨章节/跨论文断言去重与冲突检测。
 - **已知限制**：
   1. 若宿主环境缺少 `pymupdf`、`pdftotext` 与 `pypdf`，仅能完成 PDF 文件头校验而无法抽取文本版面。
   2. 纯扫描版或 `p ,0.03` 字符损毁页面在缺少 OCR 引擎（`tesseract`/`rapidocr`）时，脚本会生成截图并诚实标注 `human_review_required`，不猜测符号方向。

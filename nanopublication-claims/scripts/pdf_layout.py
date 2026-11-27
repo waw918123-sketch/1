@@ -53,7 +53,7 @@ HEADING_RE = re.compile(
     re.I,
 )
 HEADING_PREFIX_RE = re.compile(
-    r"^(?:(?:\d+(?:\.\d+){0,3}\.?|[IVX]{1,5}\.|[A-Z]\.|[一二三四五六七八九十]+、|（[一二三四五六七八九十]+）|\d+、|第[一二三四五六七八九十\d]+[章节])\s*\S+|"
+    r"^(?:(?:\d+(?:\.\d+){0,3}\.?|[IVX]{1,5}\.|[A-Z]\.|[一二三四五六七八九十]+、|（[一二三四五六七八九十]+）|\d+、|第[一二三四五六七八九十\d]+[章节])\s+[A-Z\u4e00-\u9fff][^\n]{2,}|"
     r"(?:Abstract|Introduction|Background|Related\s+Work|Methods?|Methodology|Materials?\s+and\s+Methods?|"
     r"Experimental\s+Setup|Results?(?:\s+and\s+Discussion)?|Discussion|Limitations?|Conclusions?|Acknowledgements?|References|Bibliography|Appendix)\b)",
     re.I,
@@ -65,6 +65,10 @@ PURE_EQ_LABEL_RE = re.compile(r"^\s*(?:\((\d+(?:\.\d+)?[a-z]?)\)|\[(\d+(?:\.\d+)
 MATH_SYMBOLS = set("=≈≠≤≥<>±×÷·∑∏∫∂∇√∞∈∉⊂⊆∪∩∀∃αβγδεζηθικλμνξοπρστυφχψωΓΔΘΛΞΠΣΦΨΩ→←↔⇒⇔")
 EDITOR_OR_META_RE = re.compile(
     r"^(?:Academic\s+Editor|Editor(?:s)?|Edited\s+by|Reviewed\s+by|Received|Accepted|Published|Citation|Copyright|Funding|Data\s+Availability|Competing\s+Interests|Corresponding\s+author)\b",
+    re.I,
+)
+FRONTMATTER_BOX_RE = re.compile(
+    r"\b(?:Citation:|Academic\s+Editor:|Received\s+[A-Z][a-z]+|Accepted\s+[A-Z][a-z]+|Published\s+[A-Z][a-z]+|Competing\s+Interests:|Copyright:|open-access\s+article)\b",
     re.I,
 )
 
@@ -422,30 +426,65 @@ def _rows_to_markdown(rows: List[List[str]], n_header_rows: int = 1, headers: Op
     return "\n".join(lines)
 
 
+def _is_false_frontmatter_table(clean: List[List[str]], pno: int, has_table_cap: bool = False) -> bool:
+    """Reject Page-1 title/abstract/citation boxes or single-letter drop-cap split artifacts."""
+    if not clean:
+        return True
+    flat = " ".join(" ".join(r) for r in clean)
+    if FRONTMATTER_BOX_RE.search(flat) and not has_table_cap:
+        return True
+    if pno == 1 and not has_table_cap:
+        short_col0 = sum(1 for r in clean if r and len(r[0].strip()) <= 2)
+        if short_col0 >= max(3, int(0.35 * len(clean))):
+            return True
+        if re.search(r"\bAbstract\b", flat) and len(clean[0]) <= 3:
+            return True
+    return False
+
+
 def _structure_table_rows(raw_rows: List[List[str]], header_rows_hint: Optional[int] = None) -> Dict[str, Any]:
     rows = _clean_table_rows(raw_rows)
     embedded_caption, note = None, None
-    if len(rows) >= 3:
+    # Strip embedded caption row (row 0 or row 1 if row 0 is empty spacer)
+    while len(rows) >= 3:
         r0_ne = [c for c in rows[0] if c]
         if len(r0_ne) == 1 and _is_caption_text(r0_ne[0]):
-            embedded_caption = r0_ne[0]
+            embedded_caption = embedded_caption or r0_ne[0]
             rows = _clean_table_rows(rows[1:])
-    if len(rows) >= 3:
+        else:
+            break
+    # Strip trailing footnote / DOI rows
+    while len(rows) >= 3:
         rl_ne = [c for c in rows[-1] if c]
-        if len(rl_ne) == 1 and re.match(r"^(?:DOI|Note|Notes|Source|Sources|Abbreviations?|注)[:.\s]", rl_ne[0], re.I):
-            note = rl_ne[0]
+        if len(rl_ne) == 1 and (
+            re.match(r"^(?:DOI|Note|Notes|Source|Sources|Abbreviations?|Predictions|All\s+predictions|注)[:.\s]", rl_ne[0], re.I)
+            or (len(rl_ne[0]) >= 85 and "doi:" in rl_ne[0].lower())
+        ):
+            note = rl_ne[0] if not note else f"{rl_ne[0]} {note}"
             rows = _clean_table_rows(rows[:-1])
+        else:
+            break
     if not rows:
         return {"rows": [], "header_rows": 1, "headers": [], "embedded_caption": embedded_caption, "note": note}
 
     ncols = len(rows[0])
     n_hdr = 1
     if header_rows_hint is not None and header_rows_hint >= 2 and len(rows) > header_rows_hint:
-        n_hdr = min(3, header_rows_hint)
+        n_hdr = min(4, header_rows_hint)
     elif len(rows) >= 3:
+        # Detect multi-line wrapped headers (rows with blank cols where subsequent header rows complete them)
         r0, r1 = rows[0], rows[1]
         if any(r0[c] == "" and r1[c] != "" for c in range(ncols)) and sum(1 for c in r1 if re.match(r"^-?\d+(?:\.\d+)?%?$", c)) <= max(0, ncols // 2):
             n_hdr = 2
+            while n_hdr < min(4, len(rows) - 1):
+                rn = rows[n_hdr]
+                non_empty = [c for c in rn if c]
+                if not non_empty or sum(1 for c in rn if re.match(r"^-?\d+(?:,\d{3})*(?:\.\d+)?%?$", c)) > max(1, ncols // 3):
+                    break
+                if any(rows[n_hdr - 1][c] == "" and rn[c] != "" for c in range(ncols)) or any(len(rn[c]) <= 16 and rows[0][c] == "" for c in range(ncols) if rn[c]):
+                    n_hdr += 1
+                else:
+                    break
 
     if n_hdr == 1:
         headers = list(rows[0])
@@ -460,7 +499,7 @@ def _structure_table_rows(raw_rows: List[List[str]], header_rows_hint: Optional[
                 last_idx = c
                 grp_owner[c] = c
                 grp_counts[c] += 1
-            elif last_idx >= 0 and rows[1][c]:
+            elif last_idx >= 0 and any(rows[hr][c] for hr in range(1, min(n_hdr, len(rows)))):
                 exp_top[c] = r0[last_idx]
                 grp_owner[c] = last_idx
                 grp_counts[last_idx] += 1
@@ -500,10 +539,10 @@ def _extract_tables_pdfplumber(pdf_path: Path, pages: List[int]) -> Dict[int, Li
                 continue
             page = pdf.pages[pno - 1]
             cands: List[Tuple[str, List[float], List[List[str]], Optional[int]]] = []
-            for tbl in page.find_tables():
+            for tbl in page.find_tables(table_settings={"text_x_tolerance": 1.0}):
                 data = tbl.extract() or []
                 clean = _clean_table_rows([[normalize_ligatures(c or "").strip() for c in row] for row in data])
-                if len(clean) >= 2 and len(clean[0]) >= 2:
+                if len(clean) >= 2 and len(clean[0]) >= 2 and not _is_false_frontmatter_table(clean, pno, has_table_cap=any("table" in " ".join(r).lower() for r in clean[:2])):
                     cands.append(("pdfplumber_lines", [round(x, 2) for x in tbl.bbox], clean, None))
 
             cap_boxes: List[Tuple[float, float, float]] = []
@@ -564,6 +603,7 @@ def _extract_tables_pdfplumber(pdf_path: Path, pages: List[int]) -> Dict[int, Li
                     gbox = [round(gx0, 2), round(gtop, 2), round(gx1, 2), round(gbot, 2)]
                     if any(bbox_iou(gbox, cb) > 0.25 or bbox_contains_center(gbox, cb, margin=2.0) for _, cb, _, _ in cands):
                         continue
+                    has_tcap_near = any(abs(cy - gtop) <= 80.0 and cx1 >= gx0 - 30.0 and cx0 <= gx1 + 30.0 for cx0, cx1, cy in cap_boxes)
                     hdr_hint = None
                     if len(grp) >= 3 and (grp[1]["top"] - grp[0]["bottom"]) >= 16.0:
                         try:
@@ -575,11 +615,11 @@ def _extract_tables_pdfplumber(pdf_path: Path, pages: List[int]) -> Dict[int, Li
                     for tbl in page.crop((gx0, gtop, gx1, gbot)).find_tables(table_settings={
                         "vertical_strategy": "text", "horizontal_strategy": "text",
                         "explicit_vertical_lines": [gx0, gx1], "snap_y_tolerance": 4, "intersection_tolerance": 4,
-                        "min_words_vertical": 2, "min_words_horizontal": 1,
+                        "min_words_vertical": 2, "min_words_horizontal": 1, "text_x_tolerance": 1.0,
                     }):
                         data = tbl.extract() or []
                         clean = _clean_table_rows([[normalize_ligatures(c or "").strip() for c in row] for row in data])
-                        if len(clean) >= 2 and len(clean[0]) >= 2:
+                        if len(clean) >= 2 and len(clean[0]) >= 2 and not _is_false_frontmatter_table(clean, pno, has_table_cap=has_tcap_near):
                             cands.append(("pdfplumber_threeline", gbox, clean, hdr_hint))
 
             kept: List[Dict[str, Any]] = []
@@ -602,7 +642,8 @@ def _extract_tables_fitz(doc: Any, pages: List[int]) -> Dict[int, List[Dict[str,
                 clean = _clean_table_rows([[normalize_ligatures(c or "").strip() for c in r] for r in (tbl.extract() or [])])
                 if len(clean) >= 2 and len(clean[0]) >= 2:
                     avg_len = sum(len(c) for r in clean for c in r) / max(1, sum(len(r) for r in clean))
-                    if avg_len <= 140.0:
+                    has_cap = any(_is_caption_text(c) for r in clean[:2] for c in r)
+                    if (avg_len <= 180.0 or has_cap) and not _is_false_frontmatter_table(clean, pno, has_table_cap=has_cap):
                         by_page[pno].append({"method": "pymupdf_find_tables", "bbox": [round(float(x), 2) for x in tbl.bbox], "rows": clean})
         except Exception:
             pass
@@ -671,11 +712,25 @@ def _extract_printed_page_map(headers_footers: List[Dict[str, Any]]) -> Tuple[Di
     return label_map, discrepancy
 
 
+def _clean_author_list(raw_lines: List[str]) -> List[str]:
+    """Split comma/semicolon-separated author lines and strip trailing superscript affiliation markers."""
+    authors: List[str] = []
+    for line in raw_lines:
+        cleaned_line = re.sub(r"\^\{[^}]*\}", "", line)
+        for part in re.split(r"\s*,\s*(?![^()]*\))|\s*;\s*|\s+and\s+", cleaned_line):
+            s = re.sub(r"\s*(?:\d+(?:,\d+)*|[*†‡§]+)+\s*$", "", part.strip()).strip(" ,;*†‡")
+            s = re.sub(r"\s+", " ", s)
+            if len(s) >= 3 and not re.match(r"^(?:[\d,\-\s*]+|and|et al\.)$", s, re.I):
+                authors.append(s)
+    return authors
+
+
 def _extract_metadata(
     blocks: List[Dict[str, Any]],
     headers_footers: List[Dict[str, Any]],
     pdf_meta: Optional[Dict[str, Any]] = None,
     pdf_path: Optional[Path] = None,
+    raw_p1_text: str = "",
 ) -> Dict[str, Any]:
     """Extract verified PubInfo metadata (title, authors excluding editors, year, journal, DOI, sha256)."""
     p1 = [b for b in blocks if b["page"] == 1 and b["role"] not in ("caption", "footnote")]
@@ -683,24 +738,25 @@ def _extract_metadata(
     title_cands = [b for b in top if not HEADING_PREFIX_RE.match(b["raw_text"].strip()) and not EDITOR_OR_META_RE.match(b["raw_text"].strip())]
     title_blk = max(title_cands or top, key=lambda b: (b["font_size"], -b["bbox"][1])) if top else None
 
-    authors, affiliations, author_bids = [], [], []
+    authors_raw, affiliations, author_bids = [], [], []
     if title_blk and not HEADING_PREFIX_RE.match(title_blk["raw_text"].strip()):
         t_idx = next((i for i, b in enumerate(p1) if b["block_id"] == title_blk["block_id"]), 0)
         for b in p1[t_idx + 1:]:
             txt = b["raw_text"].strip()
-            if b["role"] == "heading" or re.match(r"^(?:Abstract|摘要|1\.?\s+Introduction|一、)\b", txt, re.I):
+            if b["role"] == "heading" or re.match(r"^(?:Abstract|摘要|1\.?\s+Introduction|Introduction|一、)\b", txt, re.I):
                 break
             if EDITOR_OR_META_RE.match(txt):
                 continue
-            has_aff = bool(re.search(r"[@]|University|Department|Institute|School|College|Lab|Center|Centre|Hospital|大学|学院|研究所", txt, re.I))
+            has_aff = bool(re.search(r"[@]|^\d+\s+[A-Z]|University|Department|Institute|School|College|Lab|Center|Centre|Hospital|大学|学院|研究所", txt, re.I))
             if txt.endswith((".", "。")) and len(txt) > 55 and not has_aff:
                 break
-            if len(txt) <= 280:
+            if len(txt) <= 320:
                 if has_aff:
                     affiliations.append(txt)
                 else:
-                    authors.append(txt)
+                    authors_raw.append(txt)
                     author_bids.append(b["block_id"])
+    authors = _clean_author_list(authors_raw)
 
     abs_texts, abs_bids, kw_val, kw_bid, in_abs = [], [], None, None, False
     for b in blocks:
@@ -719,32 +775,59 @@ def _extract_metadata(
             kw_val, kw_bid, in_abs = txt, b["block_id"], False
             continue
         if in_abs:
-            if b["role"] == "heading":
+            if b["role"] == "heading" or EDITOR_OR_META_RE.match(txt):
                 in_abs = False
             else:
                 abs_texts.append(txt)
                 abs_bids.append(b["block_id"])
-                if len(abs_texts) >= 3:
+                if len(abs_texts) >= 8:
                     in_abs = False
 
-    # Scan early blocks + headers/footers for DOI, year, journal
+    # Scan early blocks + headers/footers + raw Page 1 text for DOI, year, journal, license
     front_texts = [b["raw_text"] for b in blocks if b["page"] <= 2] + [hf["text"] for hf in headers_footers if hf["page"] <= 2]
+    if raw_p1_text:
+        front_texts.insert(0, raw_p1_text)
     doi_val = "unreported"
     year_val = "unreported"
     journal_val = "unreported"
+    license_val = "unreported"
     for ft in front_texts:
         if doi_val == "unreported":
-            dm = DOI_PATTERN.search(ft)
-            if dm:
-                doi_val = dm.group(1).rstrip(".,;)]")
+            for dm in DOI_PATTERN.finditer(ft):
+                cand_doi = dm.group(1).rstrip(".,;)]")
+                if not re.search(r"\.(?:t|g|s)\d{3}$", cand_doi, re.I):
+                    doi_val = cand_doi
+                    break
         if year_val == "unreported":
-            ym = re.search(r"(?:Published|Accepted|©|\bPLoS|\bJournal|\bVol\.|\(\s*)(?:[^0-9]{0,20})((?:19|20)\d{2})\b", ft, re.I)
+            ym = re.search(r"(?:Published|Accepted|©|\bPLoS|\bJournal|\bVol\.|\(\s*)(?:[^0-9]{0,25})((?:19|20)\d{2})\b", ft, re.I)
             if ym:
                 year_val = ym.group(1)
         if journal_val == "unreported":
-            jm = re.search(r"\b(PLoS\s+ONE|PLOS\s+Biology|PLOS\s+Computational\s+Biology|Nature(?:\s+[A-Z][a-z]+)?|Science|PNAS|Journal\s+of\s+[A-Za-z\s&]+)\b", ft)
-            if jm:
-                journal_val = jm.group(1).strip()
+            jm_hi = re.search(
+                r"\b(PLOS\s+(?:ONE|Biol(?:ogy)?|Med(?:icine)?|Genet(?:ics)?|Pathog(?:ens)?|Comput\.?\s*Biol\.?|Negl\.?\s*Trop\.?\s*Dis\.?)|"
+                r"PLoS\s+(?:ONE|Biol(?:ogy)?|Med(?:icine)?|Genet(?:ics)?|Pathog(?:ens)?)|"
+                r"Nature\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?|PNAS|Proceedings\s+of\s+the\s+National\s+Academy\s+of\s+Sciences|"
+                r"New\s+England\s+Journal\s+of\s+Medicine|N\s+Engl\s+J\s+Med|The\s+Lancet|Lancet|"
+                r"eLife|PeerJ|Scientific\s+Reports|Cell(?:\s+[A-Z][a-z]+)?|Neuron|Immunity|Genome\s+Research|"
+                r"Nucleic\s+Acids\s+Research|Bioinformatics|BMC\s+[A-Z][A-Za-z]+|"
+                r"Journal\s+of\s+[A-Z][A-Za-z\s&]+)\b",
+                ft,
+            )
+            if jm_hi:
+                journal_val = re.sub(r"\s+", " ", jm_hi.group(1)).strip()
+        if license_val == "unreported":
+            lm = re.search(r"(Creative\s+Commons\s+[A-Za-z0-9\-\s]+License|CC\s+BY[^\s.;]*)", ft, re.I)
+            if lm:
+                license_val = re.sub(r"\s+", " ", lm.group(1)).strip()
+
+    if journal_val == "unreported":
+        for ft in front_texts:
+            if re.search(r"University|Department|Institute|Centre|Center|Hospital|Research\s+Centre", ft, re.I) and not re.search(r"Citation:", ft, re.I):
+                continue
+            jm_lo = re.search(r"(?<![A-Za-z\-])(Nature|Science|BMJ|JAMA)(?![A-Za-z\-])", ft)
+            if jm_lo:
+                journal_val = jm_lo.group(1).strip()
+                break
 
     if year_val == "unreported" and pdf_meta and pdf_meta.get("creationDate"):
         cm = re.search(r"((?:19|20)\d{2})", str(pdf_meta["creationDate"]))
@@ -764,7 +847,7 @@ def _extract_metadata(
         "doi": doi_val,
         "pmid": "unreported",
         "version": "unreported",
-        "license": "unreported",
+        "license": license_val,
         "source_file": str(pdf_path) if pdf_path else None,
         "file_sha256": sha256_file(pdf_path) if pdf_path else None,
         "abstract": " ".join(abs_texts) if abs_texts else None,
@@ -911,6 +994,7 @@ def _extract_with_fitz(pdf_path: Path, page_spec: Optional[str], caps: Dict[str,
 
     pdf_meta = dict(doc.metadata or {})
     total_pages = len(doc)
+    raw_p1_text = normalize_ligatures(doc[0].get_text("text") or "") if total_pages >= 1 else ""
     pages = parse_page_spec(page_spec, total_pages)
     plumber_pages = sorted({
         q
@@ -927,12 +1011,16 @@ def _extract_with_fitz(pdf_path: Path, page_spec: Optional[str], caps: Dict[str,
             pass
     for pno, flist in _extract_tables_fitz(doc, pages).items():
         for ft in flist:
-            ov = [i for i, et in enumerate(tables_by_page[pno]) if bbox_iou(ft["bbox"], et["bbox"]) > 0.40 or _bbox_containment(ft["bbox"], et["bbox"]) >= 0.65]
+            ov = [i for i, et in enumerate(tables_by_page[pno]) if bbox_iou(ft["bbox"], et["bbox"]) > 0.35 or _bbox_containment(ft["bbox"], et["bbox"]) >= 0.60]
             if not ov:
                 tables_by_page[pno].append(ft)
             else:
                 et = tables_by_page[pno][ov[0]]
-                if len(ft["rows"]) > len(et["rows"]):
+                et_flat = " ".join(" ".join(r) for r in et["rows"])
+                ft_flat = " ".join(" ".join(r) for r in ft["rows"])
+                et_glued = len(re.findall(r"[A-Za-z]{16,}|[a-z][A-Z]", et_flat))
+                ft_glued = len(re.findall(r"[A-Za-z]{16,}|[a-z][A-Z]", ft_flat))
+                if et_glued > ft_glued or (et_glued == ft_glued and len(ft["rows"]) > len(et["rows"])):
                     tables_by_page[pno][ov[0]] = ft
         tables_by_page[pno].sort(key=lambda t: (round(t["bbox"][1], 1), round(t["bbox"][0], 1)))
 
@@ -1060,8 +1148,8 @@ def _extract_with_fitz(pdf_path: Path, page_spec: Optional[str], caps: Dict[str,
                 role = "equation"
                 eq_c += 1
                 equations.append({"equation_id": f"eq_{eq_c}", "label": eq_lbl, "page": pno, "block_id": bid, "bbox": bb, "raw_text": txt, "script_text": ftxt, "has_unreadable": b["defects"]["has_defects"]})
-            elif "=" not in txt and len(txt) <= 180 and "\n" not in txt and (
-                (fs >= 1.10 * body_fs and (b["is_bold"] or HEADING_PREFIX_RE.match(txt) or idx <= 3))
+            elif "=" not in txt and len(txt) <= 180 and "\n" not in txt and not (pno == 1 and idx >= 1 and idx <= 4 and not b["is_bold"] and not HEADING_RE.match(txt) and not HEADING_PREFIX_RE.match(txt)) and (
+                (fs >= 1.10 * body_fs and (b["is_bold"] or HEADING_PREFIX_RE.match(txt) or (idx == 0 and fs >= 1.30 * body_fs)))
                 or (b["is_bold"] and HEADING_RE.match(txt))
                 or (HEADING_PREFIX_RE.match(txt) and fs >= 0.98 * body_fs and len(txt.split()) <= 16)
             ):
@@ -1139,7 +1227,7 @@ def _extract_with_fitz(pdf_path: Path, page_spec: Optional[str], caps: Dict[str,
             })
 
     merged_tables = _build_merged_tables(structured_tables)
-    metadata = _extract_metadata(all_blocks, headers_footers, pdf_meta=pdf_meta, pdf_path=pdf_path)
+    metadata = _extract_metadata(all_blocks, headers_footers, pdf_meta=pdf_meta, pdf_path=pdf_path, raw_p1_text=raw_p1_text)
     page_label_map, page_disc = _extract_printed_page_map(headers_footers)
     return {
         "file": str(pdf_path), "format": "pdf", "backend": "pymupdf", "status": "ok",

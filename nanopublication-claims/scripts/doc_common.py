@@ -29,7 +29,9 @@ LIGATURE_MAP = {
 CID_PATTERN = re.compile(r"\(cid:\d+\)")
 DOI_PATTERN = re.compile(r"\b(10\.\d{4,9}/[-._;()/:A-Za-z0-9]+)\b")
 STAT_ANOMALY_RE = re.compile(
-    r"(?:\b2?\s*p\s*,\s*0?\.\d+|\bp\s*[?]\s*0?\.\d+|\bCI\s*[:=]?\s*\d+\s*,\s*\d+)",
+    r"(?:\b2?\s*p\s*,\s*0?\.\d+|\bp\s*[?]\s*0?\.\d+|\bCI\s*[:=]?\s*\d+\s*,\s*\d+|"
+    r"(?:^|\s),\s*\d+(?:\.\d+)?\s*(?:million|billion|thousand|%|fold|×)|"
+    r"(?:\bof|\bare|\bwere|\bestimated\s+at|\bapproximately)\s+,\s*\d[\d,.]*)",
     re.I,
 )
 
@@ -251,7 +253,7 @@ def merge_bbox(boxes: Sequence[Sequence[float]]) -> List[float]:
 def normalize_for_match(text: str) -> str:
     """Normalize whitespace, hyphenated linebreaks, ligatures, and inline XML/script tags for evidence matching."""
     text = normalize_ligatures(text)
-    text = re.sub(r"<[^>]+>", "", text)
+    text = re.sub(r"</?[a-zA-Z][a-zA-Z0-9:_\-]{0,30}(?:\s+[^<>]{0,80})?/?>", "", text)
     text = re.sub(r"-\s*\n\s*", "", text)
     text = re.sub(r"\s+", " ", text).strip()
     return text
@@ -294,6 +296,8 @@ def collect_contract_keys(contract: Any) -> List[str]:
     if isinstance(contract, dict):
         if isinstance(contract.get("required_fields"), list):
             fields.extend(str(f) for f in contract["required_fields"])
+        elif isinstance(contract.get("required"), list):
+            fields.extend(str(f) for f in contract["required"])
         elif isinstance(contract.get("fields"), list):
             for item in contract["fields"]:
                 if isinstance(item, str):
@@ -301,22 +305,22 @@ def collect_contract_keys(contract: Any) -> List[str]:
                 elif isinstance(item, dict) and item.get("name"):
                     fields.append(str(item["name"]))
         elif isinstance(contract.get("properties"), dict):
-            req = contract.get("required")
-            if isinstance(req, list):
-                fields.extend(str(f) for f in req)
-            else:
-                fields.extend(str(k) for k in contract["properties"].keys())
-        elif isinstance(contract.get("result_schema"), dict) and isinstance(contract["result_schema"].get("required"), list):
-            fields.extend(str(f) for f in contract["result_schema"]["required"])
+            fields.extend(str(k) for k in contract["properties"].keys())
+        elif isinstance(contract.get("result_schema"), dict):
+            fields.extend(collect_contract_keys(contract["result_schema"]))
         else:
-            meta_keys = {
-                "format", "description", "notes", "schema_version", "file", "filename",
-                "deliverables", "files", "artifacts", "constraints", "evidence_requirements",
-                "primary_output", "rules", "example", "title", "type", "output_dir",
-            }
-            for k, v in contract.items():
-                if k not in meta_keys and not isinstance(v, dict):
-                    fields.append(str(k))
+            for sub_k in ("schema", "json_schema", "output_schema", "expected_schema", "output_contract"):
+                if isinstance(contract.get(sub_k), (dict, list)):
+                    fields.extend(collect_contract_keys(contract[sub_k]))
+            if not fields:
+                meta_keys = {
+                    "format", "description", "notes", "schema_version", "file", "filename",
+                    "deliverables", "files", "artifacts", "constraints", "evidence_requirements",
+                    "primary_output", "rules", "example", "title", "type", "output_dir",
+                }
+                for k, v in contract.items():
+                    if k not in meta_keys and not isinstance(v, dict):
+                        fields.append(str(k))
     elif isinstance(contract, list):
         for item in contract:
             if isinstance(item, str):

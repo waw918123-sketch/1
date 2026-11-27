@@ -208,6 +208,73 @@ def run_benchmark() -> Dict[str, Any]:
         else:
             naive_order_ok = False
 
+        # Scale equivalence ("8.74 million" vs "2.3 million" trap), nested table selector ("Eukaryotes Total" / "Earth Predicted"), and pubinfo fallback gap-fill (stdlib-safe)
+        from nanopub_audit import _check_table_cell
+        sub_tbl = {
+            "table_id": "tbl_sub",
+            "header_rows": 3,
+            "headers": ["Species", "Earth / Catalogued", "Earth / Predicted", "Ocean / Catalogued", "Ocean / Predicted"],
+            "rows": [
+                ["Species", "Earth", "", "Ocean", ""],
+                ["", "Catalogued", "Predicted", "Catalogued", "Predicted"],
+                ["Eukaryotes", "", "", "", ""],
+                ["Total", "1,233,500", "8,740,000", "193,756", "2,210,000"],
+                ["Prokaryotes", "", "", "", ""],
+                ["Total", "10,860", "10,100", "653", "1,300"],
+            ],
+        }
+        checks["nested_table_selector_verified"] = (
+            _check_table_cell({"row_label": "Eukaryotes Total", "col_header": "Earth Predicted", "value": "8,740,000"}, sub_tbl) is None
+            and _check_table_cell({"row_label": "Eukaryotes Total", "col_header": "Earth Predicted", "value": "10,100"}, sub_tbl) is not None
+            and _check_table_cell({"row_label": "Eukaryotes Total", "col_header": "Ocean Predicted", "value": "8,740,000"}, sub_tbl) is not None
+        )
+
+        sc_in, sc_work, sc_out = root / "sc_in", root / "sc_w", root / "sc_o" / "result.json"
+        sc_in.mkdir()
+        sc_out.parent.mkdir(parents=True, exist_ok=True)
+        (sc_in / "note.md").write_text(
+            "# Species Richness\n\nDOI: 10.1371/journal.pbio.0000001\n\n"
+            "Abstract\n\nThe model predicts ~8,740,000 eukaryotic species on Earth. Difference was not significant (p ,0.03).\n",
+            encoding="utf-8",
+        )
+        (sc_in / "case.json").write_text(json.dumps({"case_id": "SC_01", "output_contract": {"required_fields": ["case_id", "status", "nanopublications", "sources", "uncertainty"]}}), encoding="utf-8")
+        run_prep(sc_in, sc_work, init_result=sc_out)
+        sc_doc = json.loads((sc_work / "doc_1" / "document.json").read_text(encoding="utf-8"))
+        sc_blk = next(b for b in sc_doc["blocks"] if "8,740,000" in b["raw_text"])
+        patch_sc = sc_work / "patch_sc.json"
+        patch_sc.write_text(json.dumps({
+            "status": "completed",
+            "pubinfo": {"authors": ["Fallback Author"], "doi": "10.9999/hijack"},
+            "sources": [{"source_id": "src_1", "title": "Species Richness", "file": str(sc_in / "note.md")}],
+            "nanopublications": [{
+                "assertion": {
+                    "subject": "Global Earth eukaryotes",
+                    "predicate": "estimates",
+                    "object": "approximately 8.74 million species (p < 0.03)",
+                    "assertion_text": "Global Earth eukaryotic richness is estimated at approximately 8.74 million species (p < 0.03).",
+                },
+                "provenance": {
+                    "evidence_type": "statistical_finding",
+                    "confidence": "medium",
+                    "evidence_anchors": [{"doc_id": "doc_1", "page": 1, "block_id": sc_blk["block_id"], "quote": "predicts ~8,740,000 eukaryotic species on Earth. Difference was not significant (p < 0.03)."}],
+                },
+            }],
+        }, ensure_ascii=False), encoding="utf-8")
+        merged_sc = _enrich_and_merge_patch(sc_out, patch_sc, {"doc_1": sc_doc})
+        sc_out.write_text(json.dumps(merged_sc, ensure_ascii=False), encoding="utf-8")
+        rep_scale_ok = audit_result(sc_out, sc_in / "case.json", sc_work)
+        bad_scale = json.loads(json.dumps(merged_sc))
+        bad_scale["nanopublications"][0]["assertion"]["object"] = "approximately 2.3 million species"
+        sc_bad = sc_out.with_name("bad_scale.json")
+        sc_bad.write_text(json.dumps(bad_scale, ensure_ascii=False), encoding="utf-8")
+        rep_scale_bad = audit_result(sc_bad, sc_in / "case.json", sc_work)
+        checks["scale_equiv_glyph_repair_and_pubinfo_gap_fill"] = (
+            rep_scale_ok["passed"]
+            and (not rep_scale_bad["passed"])
+            and merged_sc["pubinfo"]["doc_1"]["authors"] == ["Fallback Author"]
+            and merged_sc["pubinfo"]["doc_1"]["doi"] == "10.1371/journal.pbio.0000001"
+        )
+
         # Corrupt PDF blocked check
         blk_in, blk_work, blk_out = root / "blk_in", root / "blk_w", root / "blk_o" / "result.json"
         blk_in.mkdir()

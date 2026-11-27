@@ -40,7 +40,7 @@
     ├── minimal_case.json                 # 最小合成输入示例（非正式测试案例）
     ├── minimal_task.md                   # 最小合成任务说明示例
     ├── sample_nanopubs_20.json           # 20 条可复用合成 Nanopublication 标准样例集（含示意与正反边界）
-    ├── sample_nanopubs.trig              # 对应 20 条样例导出并经校验的 W3C TriG 文件
+    ├── sample_nanopubs_trig.md           # 对应 20 条样例导出并经校验的 W3C TriG 示意输出（Markdown 封装）
     └── sample_benchmark_cases.json       # 可复用的多场景合成题集与审计陷阱测试用例
 ```
 

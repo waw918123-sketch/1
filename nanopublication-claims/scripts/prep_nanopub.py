@@ -115,7 +115,7 @@ def _build_initial_result(case_data: Dict[str, Any], docs_info: List[Dict[str, A
     }
     for f in req_fields:
         if f not in res:
-            res[f] = [] if f in ("assertions", "claims", "answers", "nanopublications", "conflicts", "sources", "human_review_items") else None
+            res[f] = [] if f in ("assertions", "claims", "nanopubs", "answers", "nanopublications", "conflicts", "sources", "human_review_items") else None
     return res
 
 

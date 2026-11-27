@@ -1083,7 +1083,7 @@
     "Reactor wall heat-transfer coefficient is unreported in the synthetic manuscript."
   ],
   "exports": {
-    "trig": "examples/sample_nanopubs.trig",
+    "trig": "examples/sample_nanopubs_trig.md",
     "trig_valid": true
   },
   "change_records": [

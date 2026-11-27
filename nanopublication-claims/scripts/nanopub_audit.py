@@ -74,10 +74,11 @@ def _enrich_and_merge_patch(
     locked_pub = res.get("pubinfo")
     now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    # Accept nanopublications / assertions / claims seamlessly from patch
+    # Accept nanopublications / assertions / claims / nanopubs seamlessly from patch
     incoming_nps = patch.get("nanopublications")
-    if incoming_nps is None:
-        incoming_nps = patch.get("assertions") if isinstance(patch.get("assertions"), list) else patch.get("claims")
+    for alt_k in ("assertions", "claims", "nanopubs"):
+        if incoming_nps is None and isinstance(patch.get(alt_k), list):
+            incoming_nps = patch.get(alt_k)
 
     for k, v in patch.items():
         if k == "case_id" and locked_cid:
@@ -103,7 +104,7 @@ def _enrich_and_merge_patch(
                     if sig not in seen:
                         seen.add(sig)
                         res[k].append(item)
-        elif k not in ("nanopublications", "assertions", "claims"):
+        elif k not in ("nanopublications", "assertions", "claims", "nanopubs"):
             res[k] = v
 
     if isinstance(incoming_nps, list):
@@ -203,7 +204,7 @@ def _enrich_and_merge_patch(
 
         res["nanopublications"] = enriched
         # Keep contract-required aliases synchronized if requested by case.json
-        for alias_k in ("assertions", "claims"):
+        for alias_k in ("assertions", "claims", "nanopubs"):
             if alias_k in res and isinstance(res[alias_k], list):
                 if not patch.get(alias_k) or patch.get(alias_k) is incoming_nps:
                     res[alias_k] = enriched
@@ -315,7 +316,7 @@ def audit_result(
     alias_map = vocab.get("alias_to_canonical") or {}
     vague_preds = set(vocab.get("vague_predicates") or [])
 
-    nps = result.get("nanopublications") or result.get("assertions") or result.get("claims") or []
+    nps = result.get("nanopublications") or result.get("assertions") or result.get("claims") or result.get("nanopubs") or []
     if raw_status == "completed" and not nps:
         errors.append("status='completed' requires non-empty nanopublications[].")
     if raw_status == "completed" and not result.get("sources"):
@@ -432,7 +433,24 @@ def audit_result(
                         nq = normalize_for_match(quote)
                         if len(nq) >= 8:
                             pages_chk = [d_idx["norm_pages"].get(p, "")] if p is not None else list(d_idx["norm_pages"].values())
-                            if not any(nq in pt for pt in pages_chk):
+                            segs = [s.strip() for s in re.split(r"\s*(?:\.\.\.|…|\[\.\.\.\])\s*", nq) if len(s.strip()) >= 6] or [nq]
+
+                            def _segs_in_page(pt: str) -> bool:
+                                pos = 0
+                                for seg in segs:
+                                    idx_f = pt.find(seg, pos)
+                                    if idx_f >= 0:
+                                        pos = idx_f + len(seg)
+                                        continue
+                                    # Subscript/punctuation space-tolerant fallback (e.g. CO 2 vs CO2, p = 0.33 vs p=0.33)
+                                    pt_ns = re.sub(r"\s+", "", pt)
+                                    seg_ns = re.sub(r"\s+", "", seg)
+                                    if seg_ns in pt_ns:
+                                        continue
+                                    return False
+                                return True
+
+                            if not any(_segs_in_page(pt) for pt in pages_chk):
                                 ok_here = False
                                 best_err = f"quote not matched verbatim on cited page {p}: {nq[:70]!r}"
                     if ok_here:

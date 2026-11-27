@@ -21,7 +21,7 @@
       "doi": "10.9999/synth.secondary.2026",
       "has_pdf_pages": false,
       "locator_mode": "jats_paragraph_id",
-      "companion_formats": ["secondary-publisher.xml"]
+      "companion_formats": []
     }
   },
   "nodes": [

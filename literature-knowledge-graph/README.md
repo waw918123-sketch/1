@@ -41,7 +41,8 @@
 └── examples/
     ├── minimal_case.json                     # 最小合成输入示例（非正式测试案例）
     ├── minimal_task.md                       # 最小合成任务说明示例
-    ├── sample_kg_corpus/                     # 自包含合成双篇语料（manifest + primary/secondary JSON + XML）
+    ├── companion-xml-example.md              # 运行时伴随 JATS XML（如 secondary-publisher.xml）结构示意
+    ├── sample_kg_corpus/                     # 自包含合成双篇语料（manifest + primary/secondary JSON）
     └── sample_result.json                    # 对应合成示例的输出示意（非正式测试答案）
 ```
 

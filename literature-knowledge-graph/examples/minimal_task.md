@@ -6,11 +6,11 @@
 - `examples/sample_kg_corpus/corpus-manifest.json`
 - `examples/sample_kg_corpus/primary-material.json`
 - `examples/sample_kg_corpus/secondary-material.json`
-- `examples/sample_kg_corpus/secondary-publisher.xml`
+- Optional runtime companion XML illustrated in `examples/companion-xml-example.md`
 
 ## Task Instructions
-1. Keep independent `source_id`, DOI, authors, and license for each paper (never leak root DOI/title/authors to `secondary`; never treat `secondary-publisher.xml` as a 3rd paper).
-2. Cite `(source_id, paragraph_id, quote)` with `page: null` (`has_pdf_pages: false`) and cross-check linearized subscripts/superscripts against `secondary-publisher.xml`.
+1. Keep independent `source_id`, DOI, authors, and license for each paper (never leak root DOI/title/authors to `secondary`; never treat companion XML formats as a 3rd paper).
+2. Cite `(source_id, paragraph_id, quote)` with `page: null` (`has_pdf_pages: false`) and cross-check linearized subscripts/superscripts against companion JATS XML when supplied in `/input/`.
 3. Extract entities, directed condition-bound relations, alignment vs. non-merge records, and execute at least 3 graph queries returning subgraphs, evidence, and indeterminate links.
 
 ## Expected Invocation

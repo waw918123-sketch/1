@@ -21,8 +21,7 @@
       "journal": "Synthetic Reaction Engineering",
       "doi": "10.9999/synth.secondary.2026",
       "license": "CC-BY-4.0",
-      "material_file": "secondary-material.json",
-      "publisher_xml": "secondary-publisher.xml"
+      "material_file": "secondary-material.json"
     }
   ]
 }

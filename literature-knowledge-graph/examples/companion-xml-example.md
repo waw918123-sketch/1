@@ -1,3 +1,8 @@
+# Synthetic Companion JATS XML Example (Illustrative Only)
+
+> Note: Harbor Skill bundles only allow standard text resource extensions (`.md`, `.json`, `.py`, `.txt`), while runtime evaluation `/input/` supplies real `.xml` files directly. Below is an illustrative `secondary-publisher.xml` structure supported by `scripts/corpus_ingest.py` (`benchmark_suite.py` also generates and tests a live temporary `.xml` file during verification).
+
+```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <article>
   <front>
@@ -17,8 +22,6 @@
       <p id="sec2-p1">We synthesized sample Co-Ni-FlowB (5 wt% Co-10 wt% Ni/CeO<sub>2</sub>) and measured CO<sub>2</sub> conversion at 573 K and 0.5 bar with space velocity 10<sup>-5</sup> s<sup>-1</sup> equivalent residence rate.</p>
       <p id="sec2-p2">Co-Ni-FlowB achieved 79.1% CO<sub>2</sub> conversion with R<sup>2</sup> = 0.994 in kinetic fitting, whereas unpromoted Ni/Al<sub>2</sub>O<sub>3</sub> (commercial pellet Lot-Z) showed 61.0% conversion under 573 K and 0.5 bar.</p>
     </sec>
-    <sec id="sec_3"><title>3. Computational Note</title>
-      <p id="sec3-p1">Density functional theory (DFT) microkinetic modeling (RPBE+U) indicated an apparent barrier of 0.81 eV on stepped Co-Ni sites, contrasting with lower barriers reported on oxide-vacancy alumina models.</p>
-    </sec>
   </body>
 </article>
+```

@@ -102,7 +102,16 @@ def _parse_scope_spec(scope_json: Optional[str]) -> Dict[str, Any]:
 def _extract_xml_units(xml_path: Path, scope: Dict[str, Any]) -> Dict[str, Any]:
     """Extract units with independent raw-node census so supplementary labels/tables/captions cannot drop silently."""
     raw_bytes = xml_path.read_bytes()
-    root = ET.fromstring(raw_bytes)
+    try:
+        root = ET.fromstring(raw_bytes)
+    except ET.ParseError:
+        txt_xml = raw_bytes.decode("utf-8", errors="replace")
+        # Inject missing standard JATS prefixes (e.g. mml, xlink) on root tag if publisher excerpt omitted declarations
+        for pfx, uri in (("mml", "http://www.w3.org/1998/Math/MathML"), ("xlink", "http://www.w3.org/1999/xlink")):
+            if f"<{pfx}:" in txt_xml or f" {pfx}:" in txt_xml:
+                if f"xmlns:{pfx}=" not in txt_xml:
+                    txt_xml = re.sub(r"(<[A-Za-z_][A-Za-z0-9_\-:]*)", rf'\1 xmlns:{pfx}="{uri}"', txt_xml, count=1)
+        root = ET.fromstring(txt_xml.encode("utf-8"))
 
     scope_ids = {s.lower() for s in scope.get("target_ids", []) if s}
     scope_tags = {s.lower() for s in scope.get("target_roles", []) if s}  # e.g. {"label", "title", "caption"}

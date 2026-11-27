@@ -24,7 +24,7 @@ LIGATURE_MAP = {
 }
 
 PRESERVED_INLINE_TAGS = {
-    "sub", "sup", "italic", "bold", "sc", "monospace", "underline", "overline", "xref", "ext-link",
+    "sub", "sup", "italic", "bold", "sc", "monospace", "underline", "overline", "xref", "ext-link", "tex-math",
 }
 
 ABBREV_TAIL_RE = re.compile(
@@ -89,6 +89,25 @@ def serialize_xml_inner(elem: ET.Element) -> str:
                 if rid:
                     attrs += f' rid="{rid}"'
             parts.append(f"<{ctag}{attrs}>{inner}</{ctag}>")
+        elif ctag == "alternatives":
+            # JATS <alternatives> wraps redundant representations (tex-math, mml:math, graphic); keep only best single form
+            alt_text = ""
+            for alt_ch in child:
+                if strip_ns(alt_ch.tag).lower() == "tex-math":
+                    cand = serialize_xml_inner(alt_ch)
+                    if cand:
+                        alt_text = f"<tex-math>{cand}</tex-math>"
+                        break
+            if not alt_text:
+                for alt_ch in child:
+                    if strip_ns(alt_ch.tag).lower() in ("inline-graphic", "graphic", "math"):
+                        continue
+                    cand = serialize_xml_inner(alt_ch)
+                    if cand:
+                        alt_text = cand
+                        break
+            if alt_text:
+                parts.append(alt_text)
         elif ctag == "break":
             parts.append(" ")
         else:

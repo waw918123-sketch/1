@@ -16,7 +16,7 @@ SCRIPTS_DIR = Path(__file__).resolve().parent
 
 
 SYNTHETIC_XML = """<?xml version="1.0" encoding="UTF-8"?>
-<article>
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML">
   <front>
     <article-meta>
       <title-group><article-title>Synthetic Kinetics with V<sub>max</sub> and K<sub><italic>m</italic></sub></article-title></title-group>
@@ -27,6 +27,7 @@ SYNTHETIC_XML = """<?xml version="1.0" encoding="UTF-8"?>
     <sec id="s1"><title>Methods</title>
       <p>Notably, credible intervals are different from confidence intervals in Bayesian assays.</p>
       <p>Treatment X does not increase toxicity, but reduces inflammation significantly (p &lt; 0.001).</p>
+      <p>Rate satisfies <inline-formula><alternatives><tex-math>\\alpha + \\beta</tex-math><mml:math><mi>α</mi><mo>+</mo><mi>β</mi></mml:math></alternatives></inline-formula>.</p>
     </sec>
     <fig id="g001">
       <label>Fig 1</label>
@@ -85,18 +86,42 @@ def run_benchmark() -> Dict[str, Any]:
         }, ensure_ascii=False), encoding="utf-8")
         p_bad = subprocess.run([sys.executable, "-B", str(SCRIPTS_DIR / "translate_audit.py"), "--result", str(res_p), "--merge", str(bad_patch), "--case", str(in_dir / "case.json"), "--manifest", str(work_dir / "manifest.json"), "--glossary", str(work_dir / "glossary.json"), "--strict"], capture_output=True, text=True)
         neg_caught = p_bad.returncode == 1 and "polarity" in p_bad.stdout.lower()
+        # Check 4: JATS <alternatives> deduplicated to single <tex-math>
+        alt_u = next((u for u in units if "<tex-math>" in u["source_text"]), {})
+        alt_dedup_ok = alt_u.get("source_text", "").count("α") == 0 and alt_u.get("source_text", "").count(r"\alpha") == 1
+        # Check 5: Full completion transitions status->completed & clears pending uncertainty
+        good_all = work_dir / "good_all.json"
+        good_map = {
+            u["unit_id"]: (
+                u["source_text"]
+                .replace("credible intervals", "可信区间")
+                .replace("credible interval", "可信区间")
+                .replace("confidence intervals", "置信区间")
+                .replace("Treatment X does not increase toxicity, but reduces inflammation significantly (p < 0.001).", "治疗 X 不增加毒性，但显著降低炎症（p < 0.001）。")
+                if u["unit_id"] != alt_u.get("unit_id")
+                else "速率满足 <tex-math>\\alpha + \\beta</tex-math>。"
+            )
+            for u in units
+        }
+        good_all.write_text(json.dumps({"translations": good_map}, ensure_ascii=False), encoding="utf-8")
+        p_good = subprocess.run([sys.executable, "-B", str(SCRIPTS_DIR / "translate_audit.py"), "--result", str(res_p), "--merge", str(good_all), "--case", str(in_dir / "case.json"), "--manifest", str(work_dir / "manifest.json"), "--glossary", str(work_dir / "glossary.json"), "--strict"], capture_output=True, text=True)
+        fin_obj = json.loads(res_p.read_text(encoding="utf-8"))
+        e2e_complete_ok = p_good.returncode == 0 and fin_obj.get("status") == "completed" and "pending" not in (fin_obj.get("uncertainty") or "").lower()
 
+        checks = {
+            "supplementary_census_complete": has_suppl and census_ok,
+            "inline_markup_and_panel_preserved": markup_ok,
+            "negation_polarity_flip_caught": neg_caught,
+            "baseline_init_result_created": res_p.exists(),
+            "jats_alternatives_formula_dedup": alt_dedup_ok,
+            "e2e_completion_clears_pending_uncertainty": e2e_complete_ok,
+        }
         return {
             "notice": "SYNTHETIC_BENCHMARK_ONLY",
             "baseline_passed": 0,
-            "skill_passed": sum(1 for v in (has_suppl, census_ok, markup_ok, neg_caught) if v),
-            "total_checks": 4,
-            "checks": {
-                "supplementary_census_complete": has_suppl and census_ok,
-                "inline_markup_and_panel_preserved": markup_ok,
-                "negation_polarity_flip_caught": neg_caught,
-                "baseline_init_result_created": res_p.exists(),
-            },
+            "skill_passed": sum(1 for v in checks.values() if v),
+            "total_checks": len(checks),
+            "checks": checks,
         }
 
 

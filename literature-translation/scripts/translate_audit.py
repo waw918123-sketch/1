@@ -53,7 +53,7 @@ def _collect_required_fields(case_data: Dict[str, Any]) -> List[str]:
 
 
 def _extract_inline_tags(text: str) -> Counter[str]:
-    tags = re.findall(r"</?(?:sub|sup|italic|bold|sc|monospace|underline|overline|xref|ext-link)\b[^>]*>", text or "", re.I)
+    tags = re.findall(r"</?(?:sub|sup|italic|bold|sc|monospace|underline|overline|xref|ext-link|tex-math)\b[^>]*>", text or "", re.I)
     # Normalize tags by tag name + ref-type/rid if present
     return Counter(re.sub(r"\s+", " ", t.lower().strip()) for t in tags)
 
@@ -185,6 +185,8 @@ def merge_patch(base_path: Path, patch_path: Path) -> Dict[str, Any]:
         done = sum(1 for u in cur_trans if isinstance(u.get("translation"), str) and u["translation"].strip())
         if done == len(cur_trans):
             merged["status"] = "completed"
+            if "uncertainty" not in patch and merged.get("uncertainty") == "Initial extraction complete; pending batch translation merge.":
+                merged["uncertainty"] = "All in-scope units translated and verified; no unresolved ambiguities."
 
     base_path.parent.mkdir(parents=True, exist_ok=True)
     base_path.write_text(json.dumps(merged, ensure_ascii=False, indent=2), encoding="utf-8")

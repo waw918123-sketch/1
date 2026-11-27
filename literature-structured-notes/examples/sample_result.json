@@ -1,0 +1,106 @@
+{
+  "_example_notice": "ILLUSTRATIVE SYNTHETIC EXAMPLE OUTPUT ONLY — NOT A REAL TEST RESULT.",
+  "case_id": "example-notes-synthetic-001",
+  "status": "completed",
+  "paper_cards": [
+    {
+      "doc_id": "doc_1",
+      "title": "Synthetic CO2 Hydrogenation over MOF-74",
+      "research_question": "Quantify selectivity and Turnover Frequency of MOF-74 under mild pressure.",
+      "data_or_materials": "MOF-74 catalyst; reactor wall thickness unreported.",
+      "method_and_conditions": "Steady-state fixed-bed flow at 673 K and 1.0 bar.",
+      "key_findings": "Table 1 reports 91.8% selectivity at 673 K (Abstract states 92.4%).",
+      "limitations": "Did not evaluate long-term fouling beyond 12 h.",
+      "evidence_anchors": [
+        {
+          "doc_id": "doc_1",
+          "page": 1,
+          "block_id": "p1_b6",
+          "section_id": "sec_2",
+          "quote": "Tests were performed at 673 K and 1.0 bar assuming steady-state flow."
+        }
+      ]
+    }
+  ],
+  "section_notes": [
+    {
+      "doc_id": "doc_1",
+      "section_id": "sec_1",
+      "section_title": "1. Introduction",
+      "purpose": "Establish Turnover Frequency (TOF) kinetics motivation.",
+      "evidence_anchors": [
+        {
+          "doc_id": "doc_1",
+          "page": 1,
+          "block_id": "p1_b4",
+          "quote": "Turnover Frequency (TOF) governs CO2 hydrogenation kinetics."
+        }
+      ]
+    },
+    {
+      "doc_id": "doc_1",
+      "section_id": "sec_2",
+      "section_title": "2. Experimental Setup",
+      "transition_from_prev": "Specifies operating conditions to test the kinetic hypothesis from Section 1.",
+      "methods": "Steady-state flow at 673 K and 1.0 bar.",
+      "limitations": "unreported",
+      "evidence_anchors": [
+        {
+          "doc_id": "doc_1",
+          "page": 1,
+          "block_id": "p1_b6",
+          "quote": "Tests were performed at 673 K and 1.0 bar assuming steady-state flow."
+        }
+      ]
+    }
+  ],
+  "knowledge_points": [
+    {
+      "canonical_term": "Metal-Organic Framework",
+      "aliases": ["MOF-74"],
+      "kind": "finding",
+      "statement": "Exhibits 91.8% selectivity in Table 1.",
+      "preconditions": "673 K, 1.0 bar, steady-state flow",
+      "verification_mode": "deterministic",
+      "evidence_anchors": [
+        {
+          "doc_id": "doc_1",
+          "page": 2,
+          "table_id": "tbl_1",
+          "row_label": "MOF-74",
+          "col_header": "Selectivity (%)",
+          "value": "91.8"
+        }
+      ]
+    }
+  ],
+  "conflicts": [
+    {
+      "topic": "MOF-74 selectivity",
+      "abstract_value": "92.4%",
+      "table_value": "91.8%",
+      "verification_mode": "human_review_required"
+    }
+  ],
+  "human_review_items": [
+    {
+      "topic": "Abstract vs Table 1 selectivity discrepancy (92.4% vs 91.8%)",
+      "verification_mode": "human_review_required"
+    }
+  ],
+  "sources": [
+    {
+      "doc_id": "doc_1",
+      "file": "/input/synthetic_paper.pdf",
+      "page": 1,
+      "block_id": "p1_b4",
+      "quote": "Turnover Frequency (TOF) governs CO2 hydrogenation kinetics."
+    }
+  ],
+  "uncertainty": [
+    "Reactor wall thickness is not reported in the synthetic manuscript."
+  ],
+  "change_records": [
+    "Reconstructed two-column reading order via recursive X-Y cut and verified anchors with notes_audit.py --strict."
+  ]
+}

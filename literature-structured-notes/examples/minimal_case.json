@@ -1,0 +1,22 @@
+{
+  "_note": "SYNTHETIC ILLUSTRATIVE EXAMPLE ONLY — NOT A REAL CHALLENGE CASE OR PREPARED ANSWER.",
+  "case_id": "example-notes-synthetic-001",
+  "title": "Synthetic structured literature note example",
+  "input_files": [
+    "/input/synthetic_paper.pdf"
+  ],
+  "output_contract": {
+    "required_fields": [
+      "case_id",
+      "status",
+      "paper_cards",
+      "section_notes",
+      "knowledge_points",
+      "conflicts",
+      "human_review_items",
+      "sources",
+      "uncertainty",
+      "change_records"
+    ]
+  }
+}

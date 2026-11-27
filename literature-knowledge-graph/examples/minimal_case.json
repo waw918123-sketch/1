@@ -1,0 +1,22 @@
+{
+  "_note": "SYNTHETIC ILLUSTRATIVE EXAMPLE ONLY — NOT A REAL CHALLENGE CASE OR PREPARED ANSWER.",
+  "case_id": "example-kg-synthetic-001",
+  "title": "Synthetic Two-Paper Catalysis & Computational Benchmarking Corpus",
+  "doi": "10.9999/synth.primary.2026",
+  "authors": ["Lin Wei", "Alex Carter"],
+  "output_contract": {
+    "required_fields": [
+      "case_id",
+      "status",
+      "papers",
+      "nodes",
+      "edges",
+      "entity_alignment",
+      "conflicts",
+      "queries",
+      "sources",
+      "uncertainty",
+      "exports"
+    ]
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "source_id": "secondary",
+  "title": "Synthetic Cobalt-Promoted CO2 Hydrogenation Under Low-Pressure Flow",
+  "doi": "10.9999/synth.secondary.2026",
+  "authors": ["Maria Gomez", "Kenji Sato"],
+  "paragraphs": [
+    {
+      "paragraph_id": "sec2-p1",
+      "section_id": "sec_2",
+      "section_title": "2. Methods and Findings",
+      "text": "We synthesized sample Co-Ni-FlowB (5 wt% Co-10 wt% Ni/CeO2) and measured CO2 conversion at 573 K and 0.5 bar with space velocity 10-5 s-1 equivalent residence rate."
+    },
+    {
+      "paragraph_id": "sec2-p2",
+      "section_id": "sec_2",
+      "section_title": "2. Methods and Findings",
+      "text": "Co-Ni-FlowB achieved 79.1% CO2 conversion with R2 = 0.994 in kinetic fitting, whereas unpromoted Ni/Al2O3 (commercial pellet Lot-Z) showed 61.0% conversion under 573 K and 0.5 bar."
+    },
+    {
+      "paragraph_id": "sec3-p1",
+      "section_id": "sec_3",
+      "section_title": "3. Computational Note",
+      "text": "Density functional theory (DFT) microkinetic modeling (RPBE+U) indicated an apparent barrier of 0.81 eV on stepped Co-Ni sites, contrasting with lower barriers reported on oxide-vacancy alumina models."
+    }
+  ]
+}

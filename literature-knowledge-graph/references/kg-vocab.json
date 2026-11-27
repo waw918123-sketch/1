@@ -1,0 +1,191 @@
+{
+  "_schema": "literature-kg-controlled-vocab/v1",
+  "entity_types": {
+    "researcher": {
+      "description": "Paper authors or cited researchers (never merge authors with editors/reviewers).",
+      "aliases": ["author", "scientist", "investigator", "person"]
+    },
+    "material": {
+      "description": "Physical substance, catalyst, chemical, reagent, polymer, alloy, biomaterial, tissue, or biological sample.",
+      "aliases": ["sample", "catalyst", "compound", "reagent", "substrate", "specimen"]
+    },
+    "method": {
+      "description": "Algorithm, model architecture, synthesis route, assay, analytical instrument, simulation protocol, or statistical test.",
+      "aliases": ["model", "algorithm", "technique", "protocol", "approach", "architecture", "tool"]
+    },
+    "task": {
+      "description": "Research problem, benchmark task, experimental objective, or clinical/prediction endpoint.",
+      "aliases": ["problem", "benchmark", "objective", "application", "endpoint"]
+    },
+    "metric": {
+      "description": "Quantitative or qualitative evaluation measure, physical property, score, or outcome indicator.",
+      "aliases": ["measure", "indicator", "property", "score", "parameter"]
+    },
+    "conclusion": {
+      "description": "Explicit scientific finding, claim, hypothesis result, or takeaway anchored to evidence.",
+      "aliases": ["finding", "claim", "result", "takeaway", "hypothesis_outcome"]
+    },
+    "dataset": {
+      "description": "Named dataset, corpus, patient cohort, or evaluation split.",
+      "aliases": ["corpus", "cohort", "data", "benchmark_dataset"]
+    },
+    "condition": {
+      "description": "Explicit experimental/modeling precondition (temperature, pressure, dose, sample size, baseline constraint).",
+      "aliases": ["precondition", "constraint", "setting", "parameter_setting"]
+    },
+    "concept": {
+      "description": "Abstract cross-paper shared concept node linking paper-scoped operational instances without conflating experimental conditions.",
+      "aliases": ["generic_concept", "canonical_concept", "abstract_concept"]
+    }
+  },
+  "relation_types": {
+    "proposes": {
+      "category": "authorship_or_contribution",
+      "directed": true,
+      "causal": false,
+      "aliases": ["introduces", "develops", "presents", "designs", "constructs"]
+    },
+    "authored_by": {
+      "category": "authorship_or_contribution",
+      "directed": true,
+      "causal": false,
+      "aliases": ["written_by", "created_by", "conducted_by"]
+    },
+    "uses": {
+      "category": "methodological_usage",
+      "directed": true,
+      "causal": false,
+      "aliases": ["applies", "employs", "adopts", "utilizes", "trained_with", "synthesized_from"]
+    },
+    "evaluates_on": {
+      "category": "evaluation_setup",
+      "directed": true,
+      "causal": false,
+      "aliases": ["tested_on", "benchmarked_on", "validated_on", "applied_to"]
+    },
+    "measures": {
+      "category": "measurement",
+      "directed": true,
+      "causal": false,
+      "aliases": ["assesses", "quantifies", "monitors", "evaluates_metric"]
+    },
+    "reports_metric": {
+      "category": "quantitative_measurement",
+      "directed": true,
+      "causal": false,
+      "aliases": ["achieves", "measured_as", "yields", "exhibits", "has_value", "obtains"]
+    },
+    "compares_with": {
+      "category": "comparative_evaluation",
+      "directed": true,
+      "symmetric_hint": true,
+      "causal": false,
+      "aliases": ["compared_against", "benchmarked_against", "contrasted_with"]
+    },
+    "outperforms": {
+      "category": "comparative_evaluation",
+      "directed": true,
+      "causal": false,
+      "requires_condition_or_metric": true,
+      "aliases": ["exceeds", "surpasses", "beats", "higher_than"]
+    },
+    "improves": {
+      "category": "directional_effect",
+      "directed": true,
+      "causal": true,
+      "aliases": ["enhances", "boosts", "upgrades", "optimizes"]
+    },
+    "increases": {
+      "category": "directional_effect",
+      "directed": true,
+      "causal": true,
+      "aliases": ["elevates", "raises", "upregulates", "promotes"],
+      "opposite": "decreases"
+    },
+    "decreases": {
+      "category": "directional_effect",
+      "directed": true,
+      "causal": true,
+      "aliases": ["reduces", "lowers", "suppresses", "mitigates", "attenuates"],
+      "opposite": "increases"
+    },
+    "causes": {
+      "category": "causal",
+      "directed": true,
+      "causal": true,
+      "forbidden_study_designs": ["observational", "cross_sectional", "retrospective", "case_control", "correlational"],
+      "aliases": ["induces", "triggers", "drives", "leads_to"]
+    },
+    "correlates_with": {
+      "category": "statistical_association",
+      "directed": true,
+      "causal": false,
+      "aliases": ["associated_with", "positively_correlates_with", "negatively_correlates_with"]
+    },
+    "predicts": {
+      "category": "predictive_association",
+      "directed": true,
+      "causal": false,
+      "aliases": ["forecasts", "prognostic_for", "estimates"]
+    },
+    "no_significant_difference": {
+      "category": "null_comparison",
+      "directed": true,
+      "causal": false,
+      "aliases": ["non_significant_difference", "not_significantly_different_from"]
+    },
+    "supports": {
+      "category": "epistemic_relation",
+      "directed": true,
+      "causal": false,
+      "aliases": ["confirms", "corroborates", "validates", "consistent_with"]
+    },
+    "contradicts": {
+      "category": "epistemic_relation",
+      "directed": true,
+      "causal": false,
+      "aliases": ["conflicts_with", "refutes", "inconsistent_with", "challenges"]
+    },
+    "extends": {
+      "category": "methodological_lineage",
+      "directed": true,
+      "causal": false,
+      "aliases": ["builds_on", "modifies", "adapts", "refines"]
+    },
+    "derived_from": {
+      "category": "methodological_lineage",
+      "directed": true,
+      "causal": false,
+      "aliases": ["extrapolated_from", "obtained_from", "based_on"]
+    },
+    "instance_of": {
+      "category": "concept_alignment",
+      "directed": true,
+      "causal": false,
+      "aliases": ["aligned_to_concept", "mapped_to_generic_concept"]
+    },
+    "not_reported": {
+      "category": "missing_evidence",
+      "directed": true,
+      "causal": false,
+      "aliases": ["unreported", "indeterminate", "not_tested"]
+    }
+  },
+  "vague_or_forbidden_relations": [
+    "relates_to",
+    "related_to",
+    "co_occurs_with",
+    "mentions",
+    "involves",
+    "links",
+    "affects",
+    "impacts",
+    "shows"
+  ],
+  "forbidden_evidence_types": [
+    "co_occurrence",
+    "speculation",
+    "guess",
+    "commonsense_completion"
+  ]
+}

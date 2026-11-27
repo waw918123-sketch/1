@@ -1,0 +1,95 @@
+{
+  "_note": "SYNTHETIC ILLUSTRATIVE OUTPUT ONLY — NOT A REAL CHALLENGE CASE OR FORMAL TEST ANSWER.",
+  "case_id": "example-kg-synthetic-001",
+  "status": "completed",
+  "papers": {
+    "primary": {
+      "source_id": "primary",
+      "title": "Synthetic Nickel-Catalyzed CO2 Methanation over Alumina Supports",
+      "authors": ["Lin Wei", "Alex Carter"],
+      "year": "2025",
+      "doi": "10.9999/synth.primary.2025",
+      "has_pdf_pages": false,
+      "locator_mode": "jats_paragraph_id",
+      "companion_formats": []
+    },
+    "secondary": {
+      "source_id": "secondary",
+      "title": "Synthetic Cobalt-Promoted CO2 Hydrogenation Under Low-Pressure Flow",
+      "authors": ["Maria Gomez", "Kenji Sato"],
+      "year": "2026",
+      "doi": "10.9999/synth.secondary.2026",
+      "has_pdf_pages": false,
+      "locator_mode": "jats_paragraph_id",
+      "companion_formats": ["secondary-publisher.xml"]
+    }
+  },
+  "nodes": [
+    {
+      "node_id": "n_001",
+      "canonical_name": "Ni-Cat-BatchA (10 wt% Ni/Al2O3, primary)",
+      "entity_type": "material",
+      "scope_level": "paper_scoped_instance",
+      "aliases": [{"surface_form": "Ni-Cat-BatchA", "source_id": "primary", "paragraph_id": "prim-sec2-p1"}],
+      "source_ids": ["primary"],
+      "provenance_role": "author_self_statement",
+      "status": "verified",
+      "evidence_anchors": [
+        {"source_id": "primary", "paragraph_id": "prim-sec2-p1", "page": null, "quote": "Ni-Cat-BatchA (10 wt% Ni/Al2O3) and evaluated CO2 methanation at 623 K and 1.0 bar"}
+      ]
+    },
+    {
+      "node_id": "n_002",
+      "canonical_name": "CO2 conversion",
+      "entity_type": "metric",
+      "scope_level": "cross_paper_concept",
+      "aliases": [{"surface_form": "CO2 conversion", "source_id": "primary", "paragraph_id": "prim-sec2-p1"}],
+      "source_ids": ["primary", "secondary"],
+      "provenance_role": "author_self_statement",
+      "status": "verified",
+      "evidence_anchors": [
+        {"source_id": "primary", "paragraph_id": "prim-sec2-p1", "page": null, "quote": "Ni-Cat-BatchA achieved 84.2% CO2 conversion"},
+        {"source_id": "secondary", "paragraph_id": "sec2-p2", "page": null, "quote": "Co-Ni-FlowB achieved 79.1% CO2 conversion"}
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "e_001",
+      "source_node_id": "n_001",
+      "relation_type": "reports_metric",
+      "canonical_relation": "reports_metric",
+      "target_node_id": "n_002",
+      "direction": "directed",
+      "source_id": "primary",
+      "conditions": "623 K, 1.0 bar, GHSV = 12000 mL g-1 h-1",
+      "statistics": "84.2% CO2 conversion",
+      "evidence_type": "direct_evidence",
+      "provenance_role": "author_self_statement",
+      "confidence": "high",
+      "confidence_basis": "Directly reported in primary paragraph prim-sec2-p1.",
+      "evidence_anchors": [
+        {"source_id": "primary", "paragraph_id": "prim-sec2-p1", "page": null, "quote": "Ni-Cat-BatchA achieved 84.2% CO2 conversion and 96.5% CH4 selectivity"}
+      ]
+    }
+  ],
+  "entity_alignment": {
+    "merged_candidates": [
+      {
+        "canonical_node_id": "n_002",
+        "canonical_name": "CO2 conversion",
+        "alignment_type": "cross_paper_generic_concept",
+        "merge_basis": "Both papers define the generic reaction metric 'CO2 conversion', while keeping measured values and reactor conditions on separate per-paper edges."
+      }
+    ],
+    "non_merge_records": [
+      {
+        "shared_surface_or_term": "Ni/Al2O3",
+        "candidate_a": {"name": "Ni-Cat-BatchA (10 wt% Ni/Al2O3)", "source_id": "primary", "paragraph_id": "prim-sec2-p1"},
+        "candidate_b": {"name": "unpromoted Ni/Al2O3 (commercial pellet Lot-Z)", "source_id": "secondary", "paragraph_id": "sec2-p2"},
+        "rejection_reason": "different_physical_sample",
+        "rationale": "Primary synthesized Ni-Cat-BatchA evaluated at 623 K / 1.0 bar whereas secondary tested commercial pellet Lot-Z at 573 K / 0.5 bar; physical samples and conditions must not be merged."
+      }
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+# Troubleshooting & Edge-Case Handling Matrix (`troubleshooting.md`)
+
+| Scenario | Detection Signal | Required Action |
+|---|---|---|
+| **Multi-file corpus with `corpus-manifest.json` + `material.json` + `primary/secondary-material.json` + `secondary-publisher.xml`** | `prep_kg.py` logs `corpus_manifest_detected: true` and links `secondary-publisher.xml` under `companion_formats` of `secondary` | Keep `material.json` as an index only; never treat `secondary-publisher.xml` as a 3rd paper; never copy primary/root DOI/title/authors onto `secondary`. |
+| **No PDF pages (`has_pdf_pages: false`)** | Input files are JSON/JATS XML/MD/TXT without PDF | Keep `page: null` everywhere; cite `(source_id, paragraph_id, quote)` exclusively. Never invent `"page": 1`. |
+| **Linearized subscripts/superscripts/inline math** | `query_kg.py --formula-diffs` reports `xml_rich_text` differing from JSON text | Quote verbatim from the JSON/text for `quote`, and store the exact XML notation in `xml_verified_text` and edge `statistics`/`conditions`. |
+| **Unprovided figures, supplements, or raw data** | `kg_brief.json` lists `unavailable_materials` | State honestly in `uncertainty[]` that image pixels / supplements / raw data were not supplied; never estimate or extrapolate missing numbers. |
+| **Intra-source or cross-paper contradiction** | Same entities show conflicting numbers/directions inside one paper or across papers | Preserve BOTH edges with separate `evidence_anchors`, log in `conflicts.intra_source_conflicts` or `conflicts.cross_paper_conflicts`, and mark affected claims if unresolved. |
+| **Homonym / shared generic term across papers** | Same term (`ALS`, `control`, `DFT`, `Catalyst A`) in two papers with different definitions or setups | Keep separate `paper_scoped_instance` nodes and add an entry to `entity_alignment.non_merge_records[]`. |
+| **Incremental update (`base_graph.json` present)** | `prep_kg.py` detects existing graph and locks `base_graph_preserved_ids` | Never renumber existing `node_id` or `edge_id`; add new IDs without collision; log `added_nodes`, `merged_nodes`, `added_edges`, `conflict_edges`, `rejected_merges`. |
+| **Encrypted or corrupt PDF / missing OCR** | `prep_kg.py` sets `status: "blocked"` or `ocr_engine_used: null` | Report honestly in `status` / `human_review_items`; never fabricate text or guess damaged statistical glyphs (`p ,0.03`). |
+| **Graph query returns zero evidenced hits** | `query_kg.py` returns `status: "no_evidenced_match"` | Record honestly in `queries[]` with `indeterminate_relations` explaining why the relation is unattested or unreported. |

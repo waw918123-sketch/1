@@ -1,0 +1,26 @@
+{
+  "source_id": "primary",
+  "title": "Synthetic Nickel-Catalyzed CO2 Methanation over Alumina Supports",
+  "doi": "10.9999/synth.primary.2025",
+  "authors": ["Lin Wei", "Alex Carter"],
+  "paragraphs": [
+    {
+      "paragraph_id": "prim-sec1-p1",
+      "section_id": "sec_1",
+      "section_title": "1. Introduction",
+      "text": "Earlier work by Park et al. (2022) reported that Ni/Al2O3 catalysts suffer sintering above 723 K [1]."
+    },
+    {
+      "paragraph_id": "prim-sec2-p1",
+      "section_id": "sec_2",
+      "section_title": "2. Experimental Results",
+      "text": "In this study, we prepared batch Ni-Cat-BatchA (10 wt% Ni/Al2O3) and evaluated CO2 methanation at 623 K and 1.0 bar (GHSV = 12000 mL g-1 h-1). Ni-Cat-BatchA achieved 84.2% CO2 conversion and 96.5% CH4 selectivity (see Fig. 1 and Supplementary Table S1)."
+    },
+    {
+      "paragraph_id": "prim-sec2-p2",
+      "section_id": "sec_2",
+      "section_title": "2. Experimental Results",
+      "text": "Using density functional theory (DFT) slab calculations (PBE functional), we found that oxygen vacancies lower the CO2 activation barrier to 0.68 eV."
+    }
+  ]
+}

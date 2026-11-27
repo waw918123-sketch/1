@@ -1,0 +1,28 @@
+{
+  "_note": "SYNTHETIC ILLUSTRATIVE CORPUS ONLY — NOT A REAL CHALLENGE CASE.",
+  "papers": [
+    {
+      "source_id": "primary",
+      "role": "primary",
+      "title": "Synthetic Nickel-Catalyzed CO2 Methanation over Alumina Supports",
+      "authors": ["Lin Wei", "Alex Carter"],
+      "year": "2025",
+      "journal": "Journal of Synthetic Catalysis",
+      "doi": "10.9999/synth.primary.2025",
+      "license": "CC-BY-4.0",
+      "material_file": "primary-material.json"
+    },
+    {
+      "source_id": "secondary",
+      "role": "secondary",
+      "title": "Synthetic Cobalt-Promoted CO2 Hydrogenation Under Low-Pressure Flow",
+      "authors": ["Maria Gomez", "Kenji Sato"],
+      "year": "2026",
+      "journal": "Synthetic Reaction Engineering",
+      "doi": "10.9999/synth.secondary.2026",
+      "license": "CC-BY-4.0",
+      "material_file": "secondary-material.json",
+      "publisher_xml": "secondary-publisher.xml"
+    }
+  ]
+}

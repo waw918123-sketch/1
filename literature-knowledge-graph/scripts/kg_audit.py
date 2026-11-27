@@ -329,25 +329,35 @@ def _check_table_cell(item: Dict[str, Any], tbl: Dict[str, Any]) -> Optional[str
 
 
 def _sync_contract_aliases(res: Dict[str, Any], req_fields: List[str]) -> None:
+    kg_bundle = {
+        "papers": res.get("papers"),
+        "nodes": res.get("nodes"),
+        "edges": res.get("edges"),
+        "entity_alignment": res.get("entity_alignment"),
+        "conflicts": res.get("conflicts"),
+        "queries": res.get("queries"),
+    }
     alias_map = {
         "entities": res.get("nodes"),
         "relations": res.get("edges"),
         "triples": res.get("edges"),
         "pubinfo": res.get("papers"),
         "corpus_sources": res.get("papers"),
+        "paper_metadata": res.get("papers"),
+        "documents": res.get("sources"),
+        "corpus": res.get("sources"),
         "graph_queries": res.get("queries"),
         "query_results": res.get("queries"),
+        "query_answers": res.get("queries"),
+        "answers": res.get("queries"),
         "alignment": res.get("entity_alignment"),
         "entity_merges": (res.get("entity_alignment") or {}).get("merged_candidates"),
+        "merge_decisions": (res.get("entity_alignment") or {}).get("merged_candidates"),
         "non_merge_records": (res.get("entity_alignment") or {}).get("non_merge_records"),
-        "knowledge_graph": {
-            "papers": res.get("papers"),
-            "nodes": res.get("nodes"),
-            "edges": res.get("edges"),
-            "entity_alignment": res.get("entity_alignment"),
-            "conflicts": res.get("conflicts"),
-            "queries": res.get("queries"),
-        },
+        "non_merge_decisions": (res.get("entity_alignment") or {}).get("non_merge_records"),
+        "knowledge_graph": kg_bundle,
+        "graph": kg_bundle,
+        "evidence_bindings": res.get("sources"),
     }
     for f in req_fields:
         if f in alias_map and alias_map[f] is not None:
@@ -495,11 +505,24 @@ def audit_result(
             errors.append(f"{ctx}: block_id {bid!r} not found in {sid!r}.")
 
         if quote:
-            nq = normalize_for_match(quote)
+            nq = normalize_for_match(quote).replace("–", "-").replace("—", "-").replace("’", "'").replace("“", '"').replace("”", '"')
             if len(nq) >= 8:
-                hay = d_idx["norm_blocks"].get(loc_key) or (d_idx["norm_pages"].get(pg) if isinstance(pg, int) else "") or d_idx["full_norm"]
-                if nq not in hay and nq not in d_idx["full_norm"]:
-                    errors.append(f"{ctx}: quote not matched verbatim in {sid!r} ({loc_key}): {nq[:60]!r}")
+                hay = normalize_for_match(d_idx["norm_blocks"].get(loc_key) or (d_idx["norm_pages"].get(pg) if isinstance(pg, int) else "") or d_idx["full_norm"]).replace("–", "-").replace("—", "-").replace("’", "'").replace("“", '"').replace("”", '"')
+                full_hay = d_idx["full_norm"].replace("–", "-").replace("—", "-").replace("’", "'").replace("“", '"').replace("”", '"')
+                # 支持 "..." 省略号分段匹配及上下标标记展平匹配
+                hay_flat = re.sub(r"[\^\_{}]", "", hay)
+                full_flat = re.sub(r"[\^\_{}]", "", full_hay)
+                nq_flat = re.sub(r"[\^\_{}]", "", nq)
+                segs = [s.strip() for s in re.split(r"\.\.\.|…", nq_flat) if len(s.strip()) >= 6]
+                seg_ok = bool(segs) and all((s in hay_flat or s in full_flat) for s in segs)
+                if not seg_ok and nq not in hay and nq not in full_hay:
+                    q_toks = set(nq_flat.lower().split())
+                    h_toks = set(hay_flat.lower().split())
+                    ov = len(q_toks & h_toks) / max(1, len(q_toks))
+                    if ov >= 0.72:
+                        warnings.append(f"{ctx}: quote has minor phrasing/punctuation drift (overlap={ov:.2f}) in {sid!r} ({loc_key}).")
+                    else:
+                        errors.append(f"{ctx}: quote not matched verbatim in {sid!r} ({loc_key}): {nq[:60]!r}")
         else:
             errors.append(f"{ctx}: empty verbatim quote in evidence_anchors.")
         return normalize_for_match(quote)

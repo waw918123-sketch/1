@@ -306,10 +306,29 @@ def execute_kg_query(graph_obj: Dict[str, Any], spec: Dict[str, Any]) -> Dict[st
     )
 
     ev_list = _collect_evidence_from_items(matched_nodes, matched_edges)
-    summary = (
-        f"Matched {len(matched_nodes)} node(s) and {len(matched_edges)} directed edge(s) "
-        f"with {len(ev_list)} verbatim evidence anchor(s) and {len(indeterminate)} indeterminate/conflict note(s)."
-    )
+    edge_clauses: List[str] = []
+    for e in matched_edges[:8]:
+        sn = node_by_id.get(e.get("source_node_id"), {}).get("canonical_name") or e.get("source_node_id")
+        tn = node_by_id.get(e.get("target_node_id"), {}).get("canonical_name") or e.get("target_node_id")
+        rel = e.get("canonical_relation") or e.get("relation_type")
+        stat = e.get("statistics")
+        cond = e.get("conditions")
+        det_parts = [f"source={e.get('source_id')}"]
+        if cond and str(cond).lower() != "unreported":
+            det_parts.append(f"conditions={cond}")
+        if stat and str(stat).lower() != "unreported":
+            det_parts.append(f"stats={stat}")
+        edge_clauses.append(f"{sn} -[{rel}]-> {tn} ({'; '.join(det_parts)})")
+    if edge_clauses:
+        summary = " | ".join(edge_clauses)
+        if indeterminate:
+            summary += f" [Indeterminate/Conflict notes: {len(indeterminate)}]"
+    else:
+        node_names = [str(n.get("canonical_name") or n.get("node_id")) for n in matched_nodes[:6]]
+        summary = (
+            f"Matched nodes {node_names} with 0 evidenced directed edges; "
+            f"{len(indeterminate)} indeterminate/unreported note(s)."
+        )
 
     res = {
         "query_id": qid,

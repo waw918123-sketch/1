@@ -63,7 +63,38 @@ python3 "$SKILL_DIR/scripts/query_kg.py" --work-dir /app/work --table tbl_1 --ro
 Consult [references/kg-schema.md](./references/kg-schema.md) for node/edge/query fields and [references/alignment-and-evidence.md](./references/alignment-and-evidence.md) for cross-paper merge vs non-merge rules.
 
 ### Stage 3 — Write Compact KG Patch + Query Specs & Run 6-Pillar Strict Audit
-Write `/app/work/patch.json` containing `status`, `nodes`, `edges`, `entity_alignment` (`merged_candidates` + `non_merge_records`), `conflicts`, `query_specs` (`>= 3` queries using `entity_neighborhood`, `relation_triple`, `cross_paper_comparison`, `shortest_path`, or `conflict_and_uncertainty`), `uncertainty`, and `human_review_items` (set `"append": true` for multi-chunk incremental merging; preserve existing IDs when `incremental_mode.enabled` is true). Then merge, execute queries deterministically, audit strictly, and export all formats in one call:
+Write `/app/work/patch.json` using this compact schema (set `"append": true` for multi-chunk incremental merging; preserve existing IDs when `incremental_mode.enabled` is true):
+
+```json
+{
+  "status": "completed",
+  "nodes": [
+    {
+      "node_id": "n_001", "canonical_name": "...", "entity_type": "method|material|researcher|task|metric|conclusion|dataset|condition|concept",
+      "scope_level": "paper_scoped_instance|single_paper_entity|cross_paper_concept",
+      "source_ids": ["primary"], "provenance_role": "author_self_statement|cited_or_third_party",
+      "aliases": [{"surface_form": "...", "source_id": "primary", "paragraph_id": "..."}],
+      "evidence_anchors": [{"source_id": "primary", "paragraph_id": "...", "page": null, "quote": "..."}]
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "e_001", "source_node_id": "n_001", "relation_type": "uses|proposes|reports_metric|evaluates_on|outperforms|compares_with|supports|contradicts|...",
+      "target_node_id": "n_002", "source_id": "primary", "conditions": "...", "statistics": "...",
+      "evidence_type": "direct_evidence|statistical_comparison|author_claim|indirect_inference|cited_prior_work",
+      "provenance_role": "author_self_statement|cited_or_third_party", "confidence": "high|medium|low",
+      "evidence_anchors": [{"source_id": "primary", "paragraph_id": "...", "page": null, "quote": "..."}]
+    }
+  ],
+  "entity_alignment": {"merged_candidates": [], "non_merge_records": []},
+  "conflicts": {"intra_source_conflicts": [], "cross_paper_conflicts": []},
+  "query_specs": [
+    {"query_id": "q_001", "question": "...", "query_type": "entity_neighborhood|relation_triple|cross_paper_comparison|shortest_path|conflict_and_uncertainty", "query_params": {"term": "..."}}
+  ]
+}
+```
+
+Then merge, execute queries deterministically, audit strictly, and export all formats in one call:
 
 ```sh
 python3 "$SKILL_DIR/scripts/kg_audit.py" \

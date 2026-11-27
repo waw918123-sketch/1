@@ -493,11 +493,18 @@ def _ingest_structured_paper_json(json_path: Path, manifest_meta: Optional[Dict[
                 elif isinstance(it, str):
                     _add_block(f"abstract-p{idx_ab}", it, role="paragraph", sec_title="Abstract")
 
-        # 处理扁平段落列表
+        # 处理扁平段落列表或字典
         para_list = None
-        for key in ("paragraphs", "blocks", "chunks", "body", "content", "items", "records"):
-            if isinstance(raw.get(key), list):
-                para_list = raw[key]
+        for key in ("paragraphs", "blocks", "chunks", "body", "content", "items", "records", "passages", "sentences"):
+            val = raw.get(key)
+            if isinstance(val, list):
+                para_list = val
+                break
+            if isinstance(val, dict):
+                para_list = [
+                    ({"paragraph_id": pk, **pv} if isinstance(pv, dict) else {"paragraph_id": pk, "text": str(pv)})
+                    for pk, pv in val.items()
+                ]
                 break
 
         if isinstance(para_list, list):
@@ -511,6 +518,12 @@ def _ingest_structured_paper_json(json_path: Path, manifest_meta: Optional[Dict[
                     sid_h = it.get("section_id") or it.get("sec_id")
                     role = str(it.get("role") or ("heading" if it.get("is_heading") else "paragraph"))
                     _add_block(pid, txt, role=role, sec_id_hint=sid_h, sec_title=st)
+
+        # 处理纯文本全文兜底
+        if not blocks and isinstance(raw.get("full_text"), str) and raw["full_text"].strip():
+            for pi, seg in enumerate(re.split(r"\n\s*\n+", raw["full_text"]), 1):
+                if seg.strip():
+                    _add_block(f"para_{pi}", seg.strip())
 
         # 处理分节树
         if isinstance(raw.get("sections"), list):
@@ -1144,7 +1157,7 @@ def ingest_corpus(
             if p.is_file() and p.suffix.lower() in SUPPORTED_EXTS and p.name not in ("case.json", "task.md")
         ]
 
-    manifest_path = next((p for p in all_candidates if p.name.lower() in ("corpus-manifest.json", "manifest.json")), None)
+    manifest_path = next((p for p in all_candidates if p.name.lower() in ("corpus-manifest.json", "corpus_manifest.json", "manifest.json")), None)
     manifest_entries = _parse_manifest_entries(manifest_path) if manifest_path else []
 
     detected_base_graph = base_graph_path
@@ -1154,7 +1167,7 @@ def ingest_corpus(
                 detected_base_graph = p
                 break
 
-    material_index_path = next((p for p in all_candidates if p.name.lower() == "material.json"), None)
+    material_index_path = next((p for p in all_candidates if p.name.lower() in ("material.json", "materials.json")), None)
     per_paper_files = [
         p for p in all_candidates
         if p != manifest_path and p != detected_base_graph and p != material_index_path

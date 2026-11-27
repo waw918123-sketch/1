@@ -1,0 +1,1095 @@
+{
+  "_notice": "SYNTHETIC ILLUSTRATIVE 20-ASSERTION EXAMPLE SET ONLY — NOT FORMAL CHALLENGE OUTPUT.",
+  "case_id": "example-nanopub-20-synthetic",
+  "status": "completed",
+  "pubinfo": {
+    "doc_1": {
+      "doc_id": "doc_1",
+      "title": "Synthetic Cohort and Catalytic Benchmark Study",
+      "authors": [
+        "Alice Researcher",
+        "Bob Scientist"
+      ],
+      "year": "2026",
+      "journal": "Journal of Synthetic Reproducibility",
+      "doi": "10.0000/synthetic.2026.001",
+      "pmid": "unreported",
+      "version": "1.0",
+      "license": "CC-BY-4.0",
+      "source_file": "/input/synthetic_paper.pdf",
+      "file_sha256": "synthetic_sha256_example_only"
+    }
+  },
+  "nanopublications": [
+    {
+      "nanopub_id": "np_001",
+      "assertion": {
+        "subject": "Catalyst Alpha (CA-1)",
+        "predicate": "increases",
+        "canonical_predicate": "increases",
+        "object": "CO2 conversion rate to 88.5%",
+        "assertion_text": "Catalyst Alpha (CA-1) increases CO2 conversion rate to 88.5% under fixed-bed flow.",
+        "polarity": "positive",
+        "conditions": "723 K, 2.0 MPa, GHSV 3000 h^-1",
+        "statistics": "88.5 ± 1.2%",
+        "study_design": "experimental"
+      },
+      "provenance": {
+        "evidence_type": "direct_observation",
+        "extraction_method": "fixed_bed_gc_measurement",
+        "confidence": "high",
+        "confidence_basis": "Directly measured in Table 1 cell with explicit temperature, pressure, and uncertainty.",
+        "evidence_anchors": [
+          {
+            "doc_id": "doc_1",
+            "page": 2,
+            "table_id": "tbl_1",
+            "row_label": "CA-1",
+            "col_header": "Conversion (%)",
+            "value": "88.5",
+            "quote": "CA-1 achieved 88.5 ± 1.2% CO2 conversion at 723 K and 2.0 MPa."
+          }
+        ]
+      },
+      "pubinfo": {
+        "doc_id": "doc_1",
+        "title": "Synthetic Cohort and Catalytic Benchmark Study",
+        "authors": [
+          "Alice Researcher",
+          "Bob Scientist"
+        ],
+        "year": "2026",
+        "journal": "Journal of Synthetic Reproducibility",
+        "doi": "10.0000/synthetic.2026.001",
+        "pmid": "unreported",
+        "version": "1.0",
+        "license": "CC-BY-4.0",
+        "source_file": "/input/synthetic_paper.pdf",
+        "file_sha256": "synthetic_sha256_example_only"
+      },
+      "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_001",
+      "head": {
+        "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_001",
+        "assertion_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_001#assertion",
+        "provenance_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_001#provenance",
+        "pubinfo_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_001#pubinfo"
+      }
+    },
+    {
+      "nanopub_id": "np_002",
+      "assertion": {
+        "subject": "Catalyst Alpha (CA-1)",
+        "predicate": "decreases",
+        "canonical_predicate": "decreases",
+        "object": "CO byproduct selectivity to 4.1%",
+        "assertion_text": "Catalyst Alpha (CA-1) decreases CO byproduct selectivity to 4.1% (split from compound clause).",
+        "polarity": "negative",
+        "conditions": "723 K, 2.0 MPa, GHSV 3000 h^-1",
+        "statistics": "4.1%",
+        "study_design": "experimental"
+      },
+      "provenance": {
+        "evidence_type": "direct_observation",
+        "extraction_method": "fixed_bed_gc_measurement",
+        "confidence": "high",
+        "confidence_basis": "Directly reported in Results text; separated from CO2 conversion claim for atomicity.",
+        "evidence_anchors": [
+          {
+            "doc_id": "doc_1",
+            "page": 2,
+            "block_id": "p2_b3",
+            "quote": "CA-1 raises CO2 conversion to 88.5% and decreases CO byproduct selectivity to 4.1%."
+          }
+        ]
+      },
+      "pubinfo": {
+        "doc_id": "doc_1",
+        "title": "Synthetic Cohort and Catalytic Benchmark Study",
+        "authors": [
+          "Alice Researcher",
+          "Bob Scientist"
+        ],
+        "year": "2026",
+        "journal": "Journal of Synthetic Reproducibility",
+        "doi": "10.0000/synthetic.2026.001",
+        "pmid": "unreported",
+        "version": "1.0",
+        "license": "CC-BY-4.0",
+        "source_file": "/input/synthetic_paper.pdf",
+        "file_sha256": "synthetic_sha256_example_only"
+      },
+      "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_002",
+      "head": {
+        "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_002",
+        "assertion_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_002#assertion",
+        "provenance_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_002#provenance",
+        "pubinfo_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_002#pubinfo"
+      }
+    },
+    {
+      "nanopub_id": "np_003",
+      "assertion": {
+        "subject": "Patient age (survived group)",
+        "predicate": "no_significant_difference",
+        "canonical_predicate": "no_significant_difference",
+        "object": "Patient age (deceased group)",
+        "assertion_text": "Patient age shows no statistically significant difference between survived and deceased groups.",
+        "polarity": "no_difference",
+        "conditions": "n = 21 patients, 6-month follow-up",
+        "statistics": "p = 0.33",
+        "study_design": "observational"
+      },
+      "provenance": {
+        "evidence_type": "statistical_comparison",
+        "extraction_method": "between_group_hypothesis_test",
+        "confidence": "high",
+        "confidence_basis": "Explicit p = 0.33 verbatim quote; does not imply identical age distributions.",
+        "evidence_anchors": [
+          {
+            "doc_id": "doc_1",
+            "page": 3,
+            "block_id": "p3_b4",
+            "quote": "There were no statistically significant differences between groups in terms of age (p = 0.33)."
+          }
+        ]
+      },
+      "pubinfo": {
+        "doc_id": "doc_1",
+        "title": "Synthetic Cohort and Catalytic Benchmark Study",
+        "authors": [
+          "Alice Researcher",
+          "Bob Scientist"
+        ],
+        "year": "2026",
+        "journal": "Journal of Synthetic Reproducibility",
+        "doi": "10.0000/synthetic.2026.001",
+        "pmid": "unreported",
+        "version": "1.0",
+        "license": "CC-BY-4.0",
+        "source_file": "/input/synthetic_paper.pdf",
+        "file_sha256": "synthetic_sha256_example_only"
+      },
+      "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_003",
+      "head": {
+        "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_003",
+        "assertion_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_003#assertion",
+        "provenance_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_003#provenance",
+        "pubinfo_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_003#pubinfo"
+      }
+    },
+    {
+      "nanopub_id": "np_004",
+      "assertion": {
+        "subject": "EEG alpha synchrony index",
+        "predicate": "correlates_with",
+        "canonical_predicate": "correlates_with",
+        "object": "survival outcome",
+        "assertion_text": "EEG alpha synchrony index correlates with survival outcome in observational cohort.",
+        "polarity": "positive",
+        "conditions": "n = 21 coma patients; observational grouping (not causal intervention)",
+        "statistics": "p < 0.03 (requires glyph check if extracted as 'p ,0.03')",
+        "study_design": "observational"
+      },
+      "provenance": {
+        "evidence_type": "statistical_comparison",
+        "extraction_method": "observational_group_comparison",
+        "confidence": "medium",
+        "confidence_basis": "Observational grouping of 21 patients supports association rather than causal prognosis.",
+        "evidence_anchors": [
+          {
+            "doc_id": "doc_1",
+            "page": 3,
+            "block_id": "p3_b6",
+            "quote": "Alpha synchrony differed between survival groups (p < 0.03, Fig. 2A)."
+          }
+        ]
+      },
+      "pubinfo": {
+        "doc_id": "doc_1",
+        "title": "Synthetic Cohort and Catalytic Benchmark Study",
+        "authors": [
+          "Alice Researcher",
+          "Bob Scientist"
+        ],
+        "year": "2026",
+        "journal": "Journal of Synthetic Reproducibility",
+        "doi": "10.0000/synthetic.2026.001",
+        "pmid": "unreported",
+        "version": "1.0",
+        "license": "CC-BY-4.0",
+        "source_file": "/input/synthetic_paper.pdf",
+        "file_sha256": "synthetic_sha256_example_only"
+      },
+      "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_004",
+      "head": {
+        "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_004",
+        "assertion_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_004#assertion",
+        "provenance_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_004#provenance",
+        "pubinfo_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_004#pubinfo"
+      }
+    },
+    {
+      "nanopub_id": "np_005",
+      "assertion": {
+        "subject": "Global terrestrial eukaryotic species count",
+        "predicate": "measured_as",
+        "canonical_predicate": "measured_as",
+        "object": "8,740,000 species",
+        "assertion_text": "Global terrestrial eukaryotic species richness is estimated at 8,740,000 (±1,300,000 SE).",
+        "polarity": "neutral",
+        "conditions": "Global Earth domain excluding prokaryotes; higher-taxon extrapolation",
+        "statistics": "SE = 1,300,000",
+        "study_design": "extrapolation"
+      },
+      "provenance": {
+        "evidence_type": "extrapolation",
+        "extraction_method": "higher_taxon_extrapolation",
+        "confidence": "medium",
+        "confidence_basis": "Downgraded from high because estimate relies on higher-taxon extrapolation rather than direct census.",
+        "evidence_anchors": [
+          {
+            "doc_id": "doc_1",
+            "page": 4,
+            "table_id": "tbl_2",
+            "row_label": "Total",
+            "col_header": "Earth",
+            "value": "8,740,000",
+            "quote": "Earth Total = 8,740,000 ± 1,300,000 SE."
+          }
+        ]
+      },
+      "pubinfo": {
+        "doc_id": "doc_1",
+        "title": "Synthetic Cohort and Catalytic Benchmark Study",
+        "authors": [
+          "Alice Researcher",
+          "Bob Scientist"
+        ],
+        "year": "2026",
+        "journal": "Journal of Synthetic Reproducibility",
+        "doi": "10.0000/synthetic.2026.001",
+        "pmid": "unreported",
+        "version": "1.0",
+        "license": "CC-BY-4.0",
+        "source_file": "/input/synthetic_paper.pdf",
+        "file_sha256": "synthetic_sha256_example_only"
+      },
+      "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_005",
+      "head": {
+        "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_005",
+        "assertion_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_005#assertion",
+        "provenance_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_005#provenance",
+        "pubinfo_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_005#pubinfo"
+      }
+    },
+    {
+      "nanopub_id": "np_006",
+      "assertion": {
+        "subject": "Global marine eukaryotic species count",
+        "predicate": "measured_as",
+        "canonical_predicate": "measured_as",
+        "object": "2,210,000 species",
+        "assertion_text": "Global marine eukaryotic species richness is estimated at 2,210,000 (±182,000 SE).",
+        "polarity": "neutral",
+        "conditions": "Ocean domain excluding prokaryotes; higher-taxon extrapolation",
+        "statistics": "SE = 182,000",
+        "study_design": "extrapolation"
+      },
+      "provenance": {
+        "evidence_type": "extrapolation",
+        "extraction_method": "higher_taxon_extrapolation",
+        "confidence": "medium",
+        "confidence_basis": "Relies on higher-taxon extrapolation; cell bound specifically to Ocean column.",
+        "evidence_anchors": [
+          {
+            "doc_id": "doc_1",
+            "page": 4,
+            "table_id": "tbl_2",
+            "row_label": "Total",
+            "col_header": "Ocean",
+            "value": "2,210,000",
+            "quote": "Ocean Total = 2,210,000 ± 182,000 SE."
+          }
+        ]
+      },
+      "pubinfo": {
+        "doc_id": "doc_1",
+        "title": "Synthetic Cohort and Catalytic Benchmark Study",
+        "authors": [
+          "Alice Researcher",
+          "Bob Scientist"
+        ],
+        "year": "2026",
+        "journal": "Journal of Synthetic Reproducibility",
+        "doi": "10.0000/synthetic.2026.001",
+        "pmid": "unreported",
+        "version": "1.0",
+        "license": "CC-BY-4.0",
+        "source_file": "/input/synthetic_paper.pdf",
+        "file_sha256": "synthetic_sha256_example_only"
+      },
+      "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_006",
+      "head": {
+        "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_006",
+        "assertion_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_006#assertion",
+        "provenance_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_006#provenance",
+        "pubinfo_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_006#pubinfo"
+      }
+    },
+    {
+      "nanopub_id": "np_007",
+      "assertion": {
+        "subject": "Caffeine (200 mg oral)",
+        "predicate": "decreases",
+        "canonical_predicate": "decreases",
+        "object": "simulated braking reaction time to 0.84 s",
+        "assertion_text": "Single 200 mg caffeine dose decreases simulated braking reaction time to 0.84 s.",
+        "polarity": "negative",
+        "conditions": "Double-blind RCT, n = 50 per arm, 60 min post-dose",
+        "statistics": "0.84 s vs 0.91 s placebo",
+        "study_design": "rct"
+      },
+      "provenance": {
+        "evidence_type": "direct_observation",
+        "extraction_method": "randomized_crossover_trial",
+        "confidence": "high",
+        "confidence_basis": "Double-blind placebo-controlled trial with explicit unit conflict noted in Table 3.",
+        "evidence_anchors": [
+          {
+            "doc_id": "doc_1",
+            "page": 5,
+            "table_id": "tbl_3",
+            "row_label": "Caffeine",
+            "col_header": "Braking RT (s)",
+            "value": "0.84",
+            "quote": "Caffeine group mean braking RT was 0.84 s."
+          }
+        ]
+      },
+      "pubinfo": {
+        "doc_id": "doc_1",
+        "title": "Synthetic Cohort and Catalytic Benchmark Study",
+        "authors": [
+          "Alice Researcher",
+          "Bob Scientist"
+        ],
+        "year": "2026",
+        "journal": "Journal of Synthetic Reproducibility",
+        "doi": "10.0000/synthetic.2026.001",
+        "pmid": "unreported",
+        "version": "1.0",
+        "license": "CC-BY-4.0",
+        "source_file": "/input/synthetic_paper.pdf",
+        "file_sha256": "synthetic_sha256_example_only"
+      },
+      "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_007",
+      "head": {
+        "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_007",
+        "assertion_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_007#assertion",
+        "provenance_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_007#provenance",
+        "pubinfo_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_007#pubinfo"
+      }
+    },
+    {
+      "nanopub_id": "np_008",
+      "assertion": {
+        "subject": "MOF-74 surface area (BET)",
+        "predicate": "measured_as",
+        "canonical_predicate": "measured_as",
+        "object": "1,420 m2/g",
+        "assertion_text": "Activated MOF-74 exhibits a BET specific surface area of 1,420 m2/g.",
+        "polarity": "neutral",
+        "conditions": "N2 adsorption at 77 K after 423 K vacuum activation",
+        "statistics": "1,420 m2/g",
+        "study_design": "experimental"
+      },
+      "provenance": {
+        "evidence_type": "direct_observation",
+        "extraction_method": "bet_isotherm_analysis",
+        "confidence": "high",
+        "confidence_basis": "Direct physical characterization under explicit activation conditions.",
+        "evidence_anchors": [
+          {
+            "doc_id": "doc_1",
+            "page": 2,
+            "block_id": "p2_b7",
+            "quote": "BET surface area of MOF-74 was measured as 1,420 m2/g at 77 K."
+          }
+        ]
+      },
+      "pubinfo": {
+        "doc_id": "doc_1",
+        "title": "Synthetic Cohort and Catalytic Benchmark Study",
+        "authors": [
+          "Alice Researcher",
+          "Bob Scientist"
+        ],
+        "year": "2026",
+        "journal": "Journal of Synthetic Reproducibility",
+        "doi": "10.0000/synthetic.2026.001",
+        "pmid": "unreported",
+        "version": "1.0",
+        "license": "CC-BY-4.0",
+        "source_file": "/input/synthetic_paper.pdf",
+        "file_sha256": "synthetic_sha256_example_only"
+      },
+      "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_008",
+      "head": {
+        "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_008",
+        "assertion_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_008#assertion",
+        "provenance_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_008#provenance",
+        "pubinfo_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_008#pubinfo"
+      }
+    },
+    {
+      "nanopub_id": "np_009",
+      "assertion": {
+        "subject": "Cu-doped MOF-74",
+        "predicate": "differs_from",
+        "canonical_predicate": "differs_from",
+        "object": "pristine MOF-74 turnover frequency (higher by 1.8x)",
+        "assertion_text": "Cu-doped MOF-74 exhibits 1.8-fold higher turnover frequency than pristine MOF-74.",
+        "polarity": "positive",
+        "conditions": "673 K, 1.0 bar, steady-state differential reactor",
+        "statistics": "1.8x TOF ratio",
+        "study_design": "experimental"
+      },
+      "provenance": {
+        "evidence_type": "direct_observation",
+        "extraction_method": "steady_state_kinetics",
+        "confidence": "high",
+        "confidence_basis": "Direct kinetic comparison under matched temperature and pressure.",
+        "evidence_anchors": [
+          {
+            "doc_id": "doc_1",
+            "page": 2,
+            "block_id": "p2_b9",
+            "quote": "Cu-doped MOF-74 showed a 1.8-fold higher TOF than pristine MOF-74 at 673 K."
+          }
+        ]
+      },
+      "pubinfo": {
+        "doc_id": "doc_1",
+        "title": "Synthetic Cohort and Catalytic Benchmark Study",
+        "authors": [
+          "Alice Researcher",
+          "Bob Scientist"
+        ],
+        "year": "2026",
+        "journal": "Journal of Synthetic Reproducibility",
+        "doi": "10.0000/synthetic.2026.001",
+        "pmid": "unreported",
+        "version": "1.0",
+        "license": "CC-BY-4.0",
+        "source_file": "/input/synthetic_paper.pdf",
+        "file_sha256": "synthetic_sha256_example_only"
+      },
+      "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_009",
+      "head": {
+        "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_009",
+        "assertion_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_009#assertion",
+        "provenance_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_009#provenance",
+        "pubinfo_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_009#pubinfo"
+      }
+    },
+    {
+      "nanopub_id": "np_010",
+      "assertion": {
+        "subject": "Inhibitor LY-294",
+        "predicate": "inhibits",
+        "canonical_predicate": "inhibits",
+        "object": "PI3K catalytic activity (IC50 = 1.4 uM)",
+        "assertion_text": "Inhibitor LY-294 inhibits PI3K catalytic activity with IC50 of 1.4 uM.",
+        "polarity": "negative",
+        "conditions": "In vitro kinase assay, 25 C, ATP 10 uM",
+        "statistics": "IC50 = 1.4 ± 0.2 uM",
+        "study_design": "experimental"
+      },
+      "provenance": {
+        "evidence_type": "direct_observation",
+        "extraction_method": "in_vitro_ic50_assay",
+        "confidence": "high",
+        "confidence_basis": "Direct biochemical dose-response measurement.",
+        "evidence_anchors": [
+          {
+            "doc_id": "doc_1",
+            "page": 3,
+            "block_id": "p3_b1",
+            "quote": "LY-294 inhibited PI3K with an IC50 of 1.4 ± 0.2 uM."
+          }
+        ]
+      },
+      "pubinfo": {
+        "doc_id": "doc_1",
+        "title": "Synthetic Cohort and Catalytic Benchmark Study",
+        "authors": [
+          "Alice Researcher",
+          "Bob Scientist"
+        ],
+        "year": "2026",
+        "journal": "Journal of Synthetic Reproducibility",
+        "doi": "10.0000/synthetic.2026.001",
+        "pmid": "unreported",
+        "version": "1.0",
+        "license": "CC-BY-4.0",
+        "source_file": "/input/synthetic_paper.pdf",
+        "file_sha256": "synthetic_sha256_example_only"
+      },
+      "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_010",
+      "head": {
+        "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_010",
+        "assertion_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_010#assertion",
+        "provenance_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_010#provenance",
+        "pubinfo_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_010#pubinfo"
+      }
+    },
+    {
+      "nanopub_id": "np_011",
+      "assertion": {
+        "subject": "AMPK phosphorylation at Thr172",
+        "predicate": "activates",
+        "canonical_predicate": "activates",
+        "object": "autophagy flux in hepatocytes",
+        "assertion_text": "AMPK phosphorylation at Thr172 activates autophagy flux in primary hepatocytes.",
+        "polarity": "positive",
+        "conditions": "In vitro serum starvation, 4 h",
+        "statistics": "unreported",
+        "study_design": "experimental"
+      },
+      "provenance": {
+        "evidence_type": "direct_observation",
+        "extraction_method": "western_blot_flux_assay",
+        "confidence": "medium",
+        "confidence_basis": "Direct perturbation assay; exact fold-change variance unreported in prose.",
+        "evidence_anchors": [
+          {
+            "doc_id": "doc_1",
+            "page": 3,
+            "block_id": "p3_b2",
+            "quote": "Thr172 phosphorylation of AMPK activated autophagy flux in hepatocytes after 4 h."
+          }
+        ]
+      },
+      "pubinfo": {
+        "doc_id": "doc_1",
+        "title": "Synthetic Cohort and Catalytic Benchmark Study",
+        "authors": [
+          "Alice Researcher",
+          "Bob Scientist"
+        ],
+        "year": "2026",
+        "journal": "Journal of Synthetic Reproducibility",
+        "doi": "10.0000/synthetic.2026.001",
+        "pmid": "unreported",
+        "version": "1.0",
+        "license": "CC-BY-4.0",
+        "source_file": "/input/synthetic_paper.pdf",
+        "file_sha256": "synthetic_sha256_example_only"
+      },
+      "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_011",
+      "head": {
+        "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_011",
+        "assertion_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_011#assertion",
+        "provenance_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_011#provenance",
+        "pubinfo_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_011#pubinfo"
+      }
+    },
+    {
+      "nanopub_id": "np_012",
+      "assertion": {
+        "subject": "Baseline serum creatinine",
+        "predicate": "predicts",
+        "canonical_predicate": "predicts",
+        "object": "90-day renal readmission risk",
+        "assertion_text": "Baseline serum creatinine predicts 90-day renal readmission risk (AUC = 0.78).",
+        "polarity": "positive",
+        "conditions": "Prospective observational cohort, n = 240",
+        "statistics": "AUC = 0.78 (95% CI 0.71-0.85)",
+        "study_design": "observational"
+      },
+      "provenance": {
+        "evidence_type": "statistical_comparison",
+        "extraction_method": "roc_auc_analysis",
+        "confidence": "high",
+        "confidence_basis": "Predictive discrimination metric with 95% CI; not framed as causal.",
+        "evidence_anchors": [
+          {
+            "doc_id": "doc_1",
+            "page": 4,
+            "block_id": "p4_b2",
+            "quote": "Baseline serum creatinine predicted 90-day readmission with AUC = 0.78 (95% CI 0.71-0.85)."
+          }
+        ]
+      },
+      "pubinfo": {
+        "doc_id": "doc_1",
+        "title": "Synthetic Cohort and Catalytic Benchmark Study",
+        "authors": [
+          "Alice Researcher",
+          "Bob Scientist"
+        ],
+        "year": "2026",
+        "journal": "Journal of Synthetic Reproducibility",
+        "doi": "10.0000/synthetic.2026.001",
+        "pmid": "unreported",
+        "version": "1.0",
+        "license": "CC-BY-4.0",
+        "source_file": "/input/synthetic_paper.pdf",
+        "file_sha256": "synthetic_sha256_example_only"
+      },
+      "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_012",
+      "head": {
+        "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_012",
+        "assertion_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_012#assertion",
+        "provenance_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_012#provenance",
+        "pubinfo_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_012#pubinfo"
+      }
+    },
+    {
+      "nanopub_id": "np_013",
+      "assertion": {
+        "subject": "Langmuir-Hinshelwood kinetic rate constant",
+        "predicate": "derived_from",
+        "canonical_predicate": "derived_from",
+        "object": "nonlinear regression (R2 = 0.987)",
+        "assertion_text": "The Langmuir-Hinshelwood rate constant was derived from steady-state isothermal regression.",
+        "polarity": "neutral",
+        "conditions": "623-723 K, zero mass-transfer limitation assumed",
+        "statistics": "R2 = 0.987",
+        "study_design": "computational_model"
+      },
+      "provenance": {
+        "evidence_type": "indirect_inference",
+        "extraction_method": "nonlinear_least_squares_fit",
+        "confidence": "medium",
+        "confidence_basis": "Model parameter fit conditioned on assumed absence of internal diffusion limitation.",
+        "evidence_anchors": [
+          {
+            "doc_id": "doc_1",
+            "page": 4,
+            "block_id": "p4_b5",
+            "quote": "Kinetic constants were derived from nonlinear regression (R2 = 0.987) assuming negligible diffusion limits."
+          }
+        ]
+      },
+      "pubinfo": {
+        "doc_id": "doc_1",
+        "title": "Synthetic Cohort and Catalytic Benchmark Study",
+        "authors": [
+          "Alice Researcher",
+          "Bob Scientist"
+        ],
+        "year": "2026",
+        "journal": "Journal of Synthetic Reproducibility",
+        "doi": "10.0000/synthetic.2026.001",
+        "pmid": "unreported",
+        "version": "1.0",
+        "license": "CC-BY-4.0",
+        "source_file": "/input/synthetic_paper.pdf",
+        "file_sha256": "synthetic_sha256_example_only"
+      },
+      "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_013",
+      "head": {
+        "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_013",
+        "assertion_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_013#assertion",
+        "provenance_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_013#provenance",
+        "pubinfo_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_013#pubinfo"
+      }
+    },
+    {
+      "nanopub_id": "np_014",
+      "assertion": {
+        "subject": "Low-dose aspirin prophylaxis",
+        "predicate": "fails_to_show",
+        "canonical_predicate": "fails_to_show",
+        "object": "reduction in primary composite endpoint",
+        "assertion_text": "Low-dose aspirin failed to show reduction in the primary composite endpoint.",
+        "polarity": "no_difference",
+        "conditions": "Older adult cohort, median follow-up 4.7 years",
+        "statistics": "HR = 1.01 (95% CI 0.92-1.11, p = 0.79)",
+        "study_design": "rct"
+      },
+      "provenance": {
+        "evidence_type": "statistical_comparison",
+        "extraction_method": "cox_proportional_hazards",
+        "confidence": "high",
+        "confidence_basis": "Null trial endpoint explicitly backed by HR and 95% CI.",
+        "evidence_anchors": [
+          {
+            "doc_id": "doc_1",
+            "page": 5,
+            "block_id": "p5_b1",
+            "quote": "Aspirin failed to reduce the primary endpoint (HR = 1.01, 95% CI 0.92-1.11, p = 0.79)."
+          }
+        ]
+      },
+      "pubinfo": {
+        "doc_id": "doc_1",
+        "title": "Synthetic Cohort and Catalytic Benchmark Study",
+        "authors": [
+          "Alice Researcher",
+          "Bob Scientist"
+        ],
+        "year": "2026",
+        "journal": "Journal of Synthetic Reproducibility",
+        "doi": "10.0000/synthetic.2026.001",
+        "pmid": "unreported",
+        "version": "1.0",
+        "license": "CC-BY-4.0",
+        "source_file": "/input/synthetic_paper.pdf",
+        "file_sha256": "synthetic_sha256_example_only"
+      },
+      "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_014",
+      "head": {
+        "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_014",
+        "assertion_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_014#assertion",
+        "provenance_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_014#provenance",
+        "pubinfo_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_014#pubinfo"
+      }
+    },
+    {
+      "nanopub_id": "np_015",
+      "assertion": {
+        "subject": "GO nanosheet suspension (0.5 mg/mL)",
+        "predicate": "characterized_by",
+        "canonical_predicate": "characterized_by",
+        "object": "zeta potential of -38.4 mV at pH 7.0",
+        "assertion_text": "GO nanosheet suspension exhibits a zeta potential of -38.4 mV at pH 7.0.",
+        "polarity": "neutral",
+        "conditions": "Deionized water, pH 7.0, 298 K",
+        "statistics": "-38.4 ± 1.5 mV",
+        "study_design": "experimental"
+      },
+      "provenance": {
+        "evidence_type": "direct_observation",
+        "extraction_method": "electrophoretic_light_scattering",
+        "confidence": "high",
+        "confidence_basis": "Direct colloidal measurement with pH and temperature specified.",
+        "evidence_anchors": [
+          {
+            "doc_id": "doc_1",
+            "page": 5,
+            "block_id": "p5_b3",
+            "quote": "GO suspension exhibited a zeta potential of -38.4 ± 1.5 mV at pH 7.0 and 298 K."
+          }
+        ]
+      },
+      "pubinfo": {
+        "doc_id": "doc_1",
+        "title": "Synthetic Cohort and Catalytic Benchmark Study",
+        "authors": [
+          "Alice Researcher",
+          "Bob Scientist"
+        ],
+        "year": "2026",
+        "journal": "Journal of Synthetic Reproducibility",
+        "doi": "10.0000/synthetic.2026.001",
+        "pmid": "unreported",
+        "version": "1.0",
+        "license": "CC-BY-4.0",
+        "source_file": "/input/synthetic_paper.pdf",
+        "file_sha256": "synthetic_sha256_example_only"
+      },
+      "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_015",
+      "head": {
+        "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_015",
+        "assertion_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_015#assertion",
+        "provenance_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_015#provenance",
+        "pubinfo_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_015#pubinfo"
+      }
+    },
+    {
+      "nanopub_id": "np_016",
+      "assertion": {
+        "subject": "FESEM elemental EDS measurement",
+        "predicate": "characterized_by",
+        "canonical_predicate": "characterized_by",
+        "object": "20 kV accelerating voltage (synthesis temperature unreported for EDS batch)",
+        "assertion_text": "FESEM EDS elemental analysis operated at 20 kV; sample synthesis temperature was unreported.",
+        "polarity": "neutral",
+        "conditions": "20 kV EDS mode; morphology images used separate 2 kV mode",
+        "statistics": "unreported",
+        "study_design": "experimental"
+      },
+      "provenance": {
+        "evidence_type": "direct_observation",
+        "extraction_method": "fesem_eds_protocol",
+        "confidence": "high",
+        "confidence_basis": "Explicitly avoids transferring 24 C temperature from Fig 3 morphology caption onto EDS batch.",
+        "evidence_anchors": [
+          {
+            "doc_id": "doc_1",
+            "page": 5,
+            "block_id": "p5_b5",
+            "quote": "FESEM with EDS operated at 2 kV for morphology and 20 kV for elemental analysis."
+          }
+        ]
+      },
+      "pubinfo": {
+        "doc_id": "doc_1",
+        "title": "Synthetic Cohort and Catalytic Benchmark Study",
+        "authors": [
+          "Alice Researcher",
+          "Bob Scientist"
+        ],
+        "year": "2026",
+        "journal": "Journal of Synthetic Reproducibility",
+        "doi": "10.0000/synthetic.2026.001",
+        "pmid": "unreported",
+        "version": "1.0",
+        "license": "CC-BY-4.0",
+        "source_file": "/input/synthetic_paper.pdf",
+        "file_sha256": "synthetic_sha256_example_only"
+      },
+      "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_016",
+      "head": {
+        "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_016",
+        "assertion_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_016#assertion",
+        "provenance_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_016#provenance",
+        "pubinfo_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_016#pubinfo"
+      }
+    },
+    {
+      "nanopub_id": "np_017",
+      "assertion": {
+        "subject": "Metformin adjunct therapy",
+        "predicate": "treats_or_improves",
+        "canonical_predicate": "treats_or_improves",
+        "object": "HbA1c reduction (-0.9 percentage points)",
+        "assertion_text": "Metformin adjunct therapy improves HbA1c by -0.9 percentage points at 24 weeks.",
+        "polarity": "positive",
+        "conditions": "24-week RCT, 1000 mg/day, n = 120",
+        "statistics": "-0.9% (p < 0.001)",
+        "study_design": "rct"
+      },
+      "provenance": {
+        "evidence_type": "statistical_comparison",
+        "extraction_method": "rct_primary_endpoint",
+        "confidence": "high",
+        "confidence_basis": "Randomized controlled endpoint with exact sample size and follow-up duration.",
+        "evidence_anchors": [
+          {
+            "doc_id": "doc_1",
+            "page": 6,
+            "block_id": "p6_b1",
+            "quote": "Metformin improved HbA1c by -0.9 percentage points over 24 weeks (n = 120, p < 0.001)."
+          }
+        ]
+      },
+      "pubinfo": {
+        "doc_id": "doc_1",
+        "title": "Synthetic Cohort and Catalytic Benchmark Study",
+        "authors": [
+          "Alice Researcher",
+          "Bob Scientist"
+        ],
+        "year": "2026",
+        "journal": "Journal of Synthetic Reproducibility",
+        "doi": "10.0000/synthetic.2026.001",
+        "pmid": "unreported",
+        "version": "1.0",
+        "license": "CC-BY-4.0",
+        "source_file": "/input/synthetic_paper.pdf",
+        "file_sha256": "synthetic_sha256_example_only"
+      },
+      "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_017",
+      "head": {
+        "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_017",
+        "assertion_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_017#assertion",
+        "provenance_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_017#provenance",
+        "pubinfo_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_017#pubinfo"
+      }
+    },
+    {
+      "nanopub_id": "np_018",
+      "assertion": {
+        "subject": "Gene knock-in X1",
+        "predicate": "causes",
+        "canonical_predicate": "causes",
+        "object": "2.4-fold increase in hepatic lipid accumulation",
+        "assertion_text": "Targeted X1 knock-in causes a 2.4-fold increase in hepatic lipid accumulation.",
+        "polarity": "positive",
+        "conditions": "C57BL/6J mice, high-fat diet 8 weeks, n = 12 per genotype",
+        "statistics": "2.4-fold (p = 0.004)",
+        "study_design": "experimental"
+      },
+      "provenance": {
+        "evidence_type": "direct_observation",
+        "extraction_method": "genetic_knockin_perturbation",
+        "confidence": "high",
+        "confidence_basis": "Controlled experimental genetic perturbation supports causal predicate.",
+        "evidence_anchors": [
+          {
+            "doc_id": "doc_1",
+            "page": 6,
+            "block_id": "p6_b2",
+            "quote": "Targeted X1 knock-in caused a 2.4-fold increase in hepatic lipids (p = 0.004)."
+          }
+        ]
+      },
+      "pubinfo": {
+        "doc_id": "doc_1",
+        "title": "Synthetic Cohort and Catalytic Benchmark Study",
+        "authors": [
+          "Alice Researcher",
+          "Bob Scientist"
+        ],
+        "year": "2026",
+        "journal": "Journal of Synthetic Reproducibility",
+        "doi": "10.0000/synthetic.2026.001",
+        "pmid": "unreported",
+        "version": "1.0",
+        "license": "CC-BY-4.0",
+        "source_file": "/input/synthetic_paper.pdf",
+        "file_sha256": "synthetic_sha256_example_only"
+      },
+      "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_018",
+      "head": {
+        "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_018",
+        "assertion_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_018#assertion",
+        "provenance_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_018#provenance",
+        "pubinfo_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_018#pubinfo"
+      }
+    },
+    {
+      "nanopub_id": "np_019",
+      "assertion": {
+        "subject": "AlphaFold2 CASP14 backbone accuracy",
+        "predicate": "measured_as",
+        "canonical_predicate": "measured_as",
+        "object": "0.96 A median C-alpha r.m.s.d.95",
+        "assertion_text": "AlphaFold2 achieves 0.96 A median C-alpha r.m.s.d.95 on CASP14 domains.",
+        "polarity": "neutral",
+        "conditions": "CASP14 evaluation domains, 95% residue coverage",
+        "statistics": "95% CI 0.85-1.16 A",
+        "study_design": "computational_model"
+      },
+      "provenance": {
+        "evidence_type": "direct_observation",
+        "extraction_method": "casp14_benchmark_evaluation",
+        "confidence": "high",
+        "confidence_basis": "Direct benchmark measurement with metric definition and 95% CI.",
+        "evidence_anchors": [
+          {
+            "doc_id": "doc_1",
+            "page": 6,
+            "block_id": "p6_b3",
+            "quote": "AlphaFold achieved 0.96 A median Ca r.m.s.d.95 (95% CI 0.85-1.16 A) on CASP14."
+          }
+        ]
+      },
+      "pubinfo": {
+        "doc_id": "doc_1",
+        "title": "Synthetic Cohort and Catalytic Benchmark Study",
+        "authors": [
+          "Alice Researcher",
+          "Bob Scientist"
+        ],
+        "year": "2026",
+        "journal": "Journal of Synthetic Reproducibility",
+        "doi": "10.0000/synthetic.2026.001",
+        "pmid": "unreported",
+        "version": "1.0",
+        "license": "CC-BY-4.0",
+        "source_file": "/input/synthetic_paper.pdf",
+        "file_sha256": "synthetic_sha256_example_only"
+      },
+      "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_019",
+      "head": {
+        "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_019",
+        "assertion_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_019#assertion",
+        "provenance_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_019#provenance",
+        "pubinfo_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_019#pubinfo"
+      }
+    },
+    {
+      "nanopub_id": "np_020",
+      "assertion": {
+        "subject": "Reactor wall heat-transfer coefficient",
+        "predicate": "not_reported",
+        "canonical_predicate": "not_reported",
+        "object": "empirical parameter value",
+        "assertion_text": "Reactor wall heat-transfer coefficient is not reported in the primary text or tables.",
+        "polarity": "unreported",
+        "conditions": "Checked Methods and Table 1; supplementary appendix unavailable",
+        "statistics": "unreported",
+        "study_design": "unreported"
+      },
+      "provenance": {
+        "evidence_type": "direct_observation",
+        "extraction_method": "negative_completeness_check",
+        "confidence": "high",
+        "confidence_basis": "Explicitly documents absence rather than fabricating parameter values.",
+        "evidence_anchors": [
+          {
+            "doc_id": "doc_1",
+            "page": 2,
+            "block_id": "p2_b1",
+            "quote": "Experiments were conducted in a stainless-steel tubular reactor."
+          }
+        ]
+      },
+      "pubinfo": {
+        "doc_id": "doc_1",
+        "title": "Synthetic Cohort and Catalytic Benchmark Study",
+        "authors": [
+          "Alice Researcher",
+          "Bob Scientist"
+        ],
+        "year": "2026",
+        "journal": "Journal of Synthetic Reproducibility",
+        "doi": "10.0000/synthetic.2026.001",
+        "pmid": "unreported",
+        "version": "1.0",
+        "license": "CC-BY-4.0",
+        "source_file": "/input/synthetic_paper.pdf",
+        "file_sha256": "synthetic_sha256_example_only"
+      },
+      "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_020",
+      "head": {
+        "nanopub_uri": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_020",
+        "assertion_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_020#assertion",
+        "provenance_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_020#provenance",
+        "pubinfo_graph": "http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_020#pubinfo"
+      }
+    }
+  ],
+  "conflicts": [
+    {
+      "topic": "Caffeine simulated driving vs Table 3 unit notation",
+      "description": "Methods describes braking RT in milliseconds while Table 3 reports 0.84 s; kept separate for human review.",
+      "verification_mode": "human_review_required"
+    }
+  ],
+  "human_review_items": [
+    {
+      "doc_id": "doc_1",
+      "page": 3,
+      "block_id": "p3_b6",
+      "reason": "Verify rendered figure/crop if PDF text layer extracts 'p < 0.03' as 'p ,0.03'.",
+      "verification_mode": "human_review_required"
+    }
+  ],
+  "sources": [
+    {
+      "doc_id": "doc_1",
+      "file": "/input/synthetic_paper.pdf",
+      "page": 2,
+      "block_id": "p2_b3",
+      "quote": "CA-1 raises CO2 conversion to 88.5% and decreases CO byproduct selectivity to 4.1%."
+    }
+  ],
+  "uncertainty": [
+    "Reactor wall heat-transfer coefficient is unreported in the synthetic manuscript."
+  ],
+  "exports": {
+    "trig": "examples/sample_nanopubs.trig",
+    "trig_valid": true
+  },
+  "change_records": [
+    {
+      "stage": "synthetic_example_only",
+      "detail": "20 illustrative synthetic Nanopublications spanning all controlled predicates and provenance guards."
+    }
+  ]
+}

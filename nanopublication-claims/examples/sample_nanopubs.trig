@@ -1,0 +1,1091 @@
+@prefix np: <http://www.nanopub.org/nschema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix dct: <http://purl.org/dc/terms/> .
+@prefix pav: <http://purl.org/pav/> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix cito: <http://purl.org/spar/cito/> .
+@prefix schema: <https://schema.org/> .
+@prefix npdoc: <http://purl.org/nanopub/local/example-nanopub-20-synthetic/> .
+@prefix npprop: <http://purl.org/nanopub/local/vocab/> .
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_001#Head> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_001> a np:Nanopublication ;
+    np:hasAssertion <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_001#assertion> ;
+    np:hasProvenance <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_001#provenance> ;
+    np:hasPublicationInfo <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_001#pubinfo> .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_001#assertion> {
+  npdoc:entity_Catalyst_Alpha_CA-1_614cef8f rdfs:label "Catalyst Alpha (CA-1)" ;
+    npprop:increases "CO2 conversion rate to 88.5%" .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_001#statement> a rdf:Statement ;
+    rdf:subject npdoc:entity_Catalyst_Alpha_CA-1_614cef8f ;
+    rdf:predicate npprop:increases ;
+    rdf:object "CO2 conversion rate to 88.5%" ;
+    rdfs:label "Catalyst Alpha (CA-1) increases CO2 conversion rate to 88.5% under fixed-bed flow." ;
+    npprop:polarity "positive" ;
+    npprop:conditions "723 K, 2.0 MPa, GHSV 3000 h^-1" ;
+    npprop:statistics "88.5 ± 1.2%" ;
+    npprop:studyDesign "experimental" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_001#provenance> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_001#assertion> prov:wasGeneratedBy "fixed_bed_gc_measurement" ;
+    npprop:evidenceType "direct_observation" ;
+    npprop:confidence "high" ;
+    npprop:confidenceBasis "Directly measured in Table 1 cell with explicit temperature, pressure, and uncertainty." .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_001#assertion> cito:citesAsEvidence <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_001#evidence_1> .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_001#evidence_1> a prov:Entity ;
+    npprop:docId "doc_1" ;
+    npprop:page 2 ;
+    npprop:printedPage "unreported" ;
+    npprop:sectionId "unreported" ;
+    npprop:blockId "unreported" ;
+    npprop:tableId "tbl_1" ;
+    npprop:rowLabel "CA-1" ;
+    npprop:colHeader "Conversion (%)" ;
+    npprop:cellValue "88.5" ;
+    npprop:quoteSha256 "none" ;
+    prov:value "CA-1 achieved 88.5 ± 1.2% CO2 conversion at 723 K and 2.0 MPa." .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_001#pubinfo> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_001> dct:created "2026-11-27T02:41:30Z"^^xsd:dateTime ;
+    pav:createdBy "nanopublication-claims" ;
+    dct:title "Synthetic Cohort and Catalytic Benchmark Study" ;
+    pav:authoredBy "Alice Researcher; Bob Scientist" ;
+    dct:issued "2026" ;
+    schema:isPartOf "Journal of Synthetic Reproducibility" ;
+    dct:identifier "10.0000/synthetic.2026.001" ;
+    dct:license "CC-BY-4.0" ;
+    npprop:sourceFile "/input/synthetic_paper.pdf" ;
+    npprop:fileSha256 "synthetic_sha256_example_only" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_002#Head> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_002> a np:Nanopublication ;
+    np:hasAssertion <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_002#assertion> ;
+    np:hasProvenance <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_002#provenance> ;
+    np:hasPublicationInfo <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_002#pubinfo> .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_002#assertion> {
+  npdoc:entity_Catalyst_Alpha_CA-1_614cef8f rdfs:label "Catalyst Alpha (CA-1)" ;
+    npprop:decreases "CO byproduct selectivity to 4.1%" .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_002#statement> a rdf:Statement ;
+    rdf:subject npdoc:entity_Catalyst_Alpha_CA-1_614cef8f ;
+    rdf:predicate npprop:decreases ;
+    rdf:object "CO byproduct selectivity to 4.1%" ;
+    rdfs:label "Catalyst Alpha (CA-1) decreases CO byproduct selectivity to 4.1% (split from compound clause)." ;
+    npprop:polarity "negative" ;
+    npprop:conditions "723 K, 2.0 MPa, GHSV 3000 h^-1" ;
+    npprop:statistics "4.1%" ;
+    npprop:studyDesign "experimental" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_002#provenance> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_002#assertion> prov:wasGeneratedBy "fixed_bed_gc_measurement" ;
+    npprop:evidenceType "direct_observation" ;
+    npprop:confidence "high" ;
+    npprop:confidenceBasis "Directly reported in Results text; separated from CO2 conversion claim for atomicity." .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_002#assertion> cito:citesAsEvidence <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_002#evidence_1> .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_002#evidence_1> a prov:Entity ;
+    npprop:docId "doc_1" ;
+    npprop:page 2 ;
+    npprop:printedPage "unreported" ;
+    npprop:sectionId "unreported" ;
+    npprop:blockId "p2_b3" ;
+    npprop:tableId "none" ;
+    npprop:rowLabel "none" ;
+    npprop:colHeader "none" ;
+    npprop:cellValue "none" ;
+    npprop:quoteSha256 "none" ;
+    prov:value "CA-1 raises CO2 conversion to 88.5% and decreases CO byproduct selectivity to 4.1%." .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_002#pubinfo> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_002> dct:created "2026-11-27T02:41:30Z"^^xsd:dateTime ;
+    pav:createdBy "nanopublication-claims" ;
+    dct:title "Synthetic Cohort and Catalytic Benchmark Study" ;
+    pav:authoredBy "Alice Researcher; Bob Scientist" ;
+    dct:issued "2026" ;
+    schema:isPartOf "Journal of Synthetic Reproducibility" ;
+    dct:identifier "10.0000/synthetic.2026.001" ;
+    dct:license "CC-BY-4.0" ;
+    npprop:sourceFile "/input/synthetic_paper.pdf" ;
+    npprop:fileSha256 "synthetic_sha256_example_only" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_003#Head> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_003> a np:Nanopublication ;
+    np:hasAssertion <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_003#assertion> ;
+    np:hasProvenance <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_003#provenance> ;
+    np:hasPublicationInfo <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_003#pubinfo> .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_003#assertion> {
+  npdoc:entity_Patient_age_survived_group_f173930b rdfs:label "Patient age (survived group)" ;
+    npprop:no_significant_difference "Patient age (deceased group)" .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_003#statement> a rdf:Statement ;
+    rdf:subject npdoc:entity_Patient_age_survived_group_f173930b ;
+    rdf:predicate npprop:no_significant_difference ;
+    rdf:object "Patient age (deceased group)" ;
+    rdfs:label "Patient age shows no statistically significant difference between survived and deceased groups." ;
+    npprop:polarity "no_difference" ;
+    npprop:conditions "n = 21 patients, 6-month follow-up" ;
+    npprop:statistics "p = 0.33" ;
+    npprop:studyDesign "observational" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_003#provenance> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_003#assertion> prov:wasGeneratedBy "between_group_hypothesis_test" ;
+    npprop:evidenceType "statistical_comparison" ;
+    npprop:confidence "high" ;
+    npprop:confidenceBasis "Explicit p = 0.33 verbatim quote; does not imply identical age distributions." .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_003#assertion> cito:citesAsEvidence <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_003#evidence_1> .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_003#evidence_1> a prov:Entity ;
+    npprop:docId "doc_1" ;
+    npprop:page 3 ;
+    npprop:printedPage "unreported" ;
+    npprop:sectionId "unreported" ;
+    npprop:blockId "p3_b4" ;
+    npprop:tableId "none" ;
+    npprop:rowLabel "none" ;
+    npprop:colHeader "none" ;
+    npprop:cellValue "none" ;
+    npprop:quoteSha256 "none" ;
+    prov:value "There were no statistically significant differences between groups in terms of age (p = 0.33)." .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_003#pubinfo> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_003> dct:created "2026-11-27T02:41:30Z"^^xsd:dateTime ;
+    pav:createdBy "nanopublication-claims" ;
+    dct:title "Synthetic Cohort and Catalytic Benchmark Study" ;
+    pav:authoredBy "Alice Researcher; Bob Scientist" ;
+    dct:issued "2026" ;
+    schema:isPartOf "Journal of Synthetic Reproducibility" ;
+    dct:identifier "10.0000/synthetic.2026.001" ;
+    dct:license "CC-BY-4.0" ;
+    npprop:sourceFile "/input/synthetic_paper.pdf" ;
+    npprop:fileSha256 "synthetic_sha256_example_only" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_004#Head> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_004> a np:Nanopublication ;
+    np:hasAssertion <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_004#assertion> ;
+    np:hasProvenance <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_004#provenance> ;
+    np:hasPublicationInfo <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_004#pubinfo> .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_004#assertion> {
+  npdoc:entity_EEG_alpha_synchrony_index_410d0fe5 rdfs:label "EEG alpha synchrony index" ;
+    npprop:correlates_with "survival outcome" .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_004#statement> a rdf:Statement ;
+    rdf:subject npdoc:entity_EEG_alpha_synchrony_index_410d0fe5 ;
+    rdf:predicate npprop:correlates_with ;
+    rdf:object "survival outcome" ;
+    rdfs:label "EEG alpha synchrony index correlates with survival outcome in observational cohort." ;
+    npprop:polarity "positive" ;
+    npprop:conditions "n = 21 coma patients; observational grouping (not causal intervention)" ;
+    npprop:statistics "p < 0.03 (requires glyph check if extracted as 'p ,0.03')" ;
+    npprop:studyDesign "observational" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_004#provenance> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_004#assertion> prov:wasGeneratedBy "observational_group_comparison" ;
+    npprop:evidenceType "statistical_comparison" ;
+    npprop:confidence "medium" ;
+    npprop:confidenceBasis "Observational grouping of 21 patients supports association rather than causal prognosis." .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_004#assertion> cito:citesAsEvidence <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_004#evidence_1> .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_004#evidence_1> a prov:Entity ;
+    npprop:docId "doc_1" ;
+    npprop:page 3 ;
+    npprop:printedPage "unreported" ;
+    npprop:sectionId "unreported" ;
+    npprop:blockId "p3_b6" ;
+    npprop:tableId "none" ;
+    npprop:rowLabel "none" ;
+    npprop:colHeader "none" ;
+    npprop:cellValue "none" ;
+    npprop:quoteSha256 "none" ;
+    prov:value "Alpha synchrony differed between survival groups (p < 0.03, Fig. 2A)." .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_004#pubinfo> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_004> dct:created "2026-11-27T02:41:30Z"^^xsd:dateTime ;
+    pav:createdBy "nanopublication-claims" ;
+    dct:title "Synthetic Cohort and Catalytic Benchmark Study" ;
+    pav:authoredBy "Alice Researcher; Bob Scientist" ;
+    dct:issued "2026" ;
+    schema:isPartOf "Journal of Synthetic Reproducibility" ;
+    dct:identifier "10.0000/synthetic.2026.001" ;
+    dct:license "CC-BY-4.0" ;
+    npprop:sourceFile "/input/synthetic_paper.pdf" ;
+    npprop:fileSha256 "synthetic_sha256_example_only" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_005#Head> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_005> a np:Nanopublication ;
+    np:hasAssertion <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_005#assertion> ;
+    np:hasProvenance <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_005#provenance> ;
+    np:hasPublicationInfo <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_005#pubinfo> .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_005#assertion> {
+  npdoc:entity_Global_terrestrial_eukaryotic_species_count_2496d6e4 rdfs:label "Global terrestrial eukaryotic species count" ;
+    npprop:measured_as "8,740,000 species" .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_005#statement> a rdf:Statement ;
+    rdf:subject npdoc:entity_Global_terrestrial_eukaryotic_species_count_2496d6e4 ;
+    rdf:predicate npprop:measured_as ;
+    rdf:object "8,740,000 species" ;
+    rdfs:label "Global terrestrial eukaryotic species richness is estimated at 8,740,000 (±1,300,000 SE)." ;
+    npprop:polarity "neutral" ;
+    npprop:conditions "Global Earth domain excluding prokaryotes; higher-taxon extrapolation" ;
+    npprop:statistics "SE = 1,300,000" ;
+    npprop:studyDesign "extrapolation" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_005#provenance> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_005#assertion> prov:wasGeneratedBy "higher_taxon_extrapolation" ;
+    npprop:evidenceType "extrapolation" ;
+    npprop:confidence "medium" ;
+    npprop:confidenceBasis "Downgraded from high because estimate relies on higher-taxon extrapolation rather than direct census." .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_005#assertion> cito:citesAsEvidence <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_005#evidence_1> .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_005#evidence_1> a prov:Entity ;
+    npprop:docId "doc_1" ;
+    npprop:page 4 ;
+    npprop:printedPage "unreported" ;
+    npprop:sectionId "unreported" ;
+    npprop:blockId "unreported" ;
+    npprop:tableId "tbl_2" ;
+    npprop:rowLabel "Total" ;
+    npprop:colHeader "Earth" ;
+    npprop:cellValue "8,740,000" ;
+    npprop:quoteSha256 "none" ;
+    prov:value "Earth Total = 8,740,000 ± 1,300,000 SE." .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_005#pubinfo> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_005> dct:created "2026-11-27T02:41:30Z"^^xsd:dateTime ;
+    pav:createdBy "nanopublication-claims" ;
+    dct:title "Synthetic Cohort and Catalytic Benchmark Study" ;
+    pav:authoredBy "Alice Researcher; Bob Scientist" ;
+    dct:issued "2026" ;
+    schema:isPartOf "Journal of Synthetic Reproducibility" ;
+    dct:identifier "10.0000/synthetic.2026.001" ;
+    dct:license "CC-BY-4.0" ;
+    npprop:sourceFile "/input/synthetic_paper.pdf" ;
+    npprop:fileSha256 "synthetic_sha256_example_only" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_006#Head> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_006> a np:Nanopublication ;
+    np:hasAssertion <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_006#assertion> ;
+    np:hasProvenance <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_006#provenance> ;
+    np:hasPublicationInfo <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_006#pubinfo> .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_006#assertion> {
+  npdoc:entity_Global_marine_eukaryotic_species_count_d17916e8 rdfs:label "Global marine eukaryotic species count" ;
+    npprop:measured_as "2,210,000 species" .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_006#statement> a rdf:Statement ;
+    rdf:subject npdoc:entity_Global_marine_eukaryotic_species_count_d17916e8 ;
+    rdf:predicate npprop:measured_as ;
+    rdf:object "2,210,000 species" ;
+    rdfs:label "Global marine eukaryotic species richness is estimated at 2,210,000 (±182,000 SE)." ;
+    npprop:polarity "neutral" ;
+    npprop:conditions "Ocean domain excluding prokaryotes; higher-taxon extrapolation" ;
+    npprop:statistics "SE = 182,000" ;
+    npprop:studyDesign "extrapolation" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_006#provenance> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_006#assertion> prov:wasGeneratedBy "higher_taxon_extrapolation" ;
+    npprop:evidenceType "extrapolation" ;
+    npprop:confidence "medium" ;
+    npprop:confidenceBasis "Relies on higher-taxon extrapolation; cell bound specifically to Ocean column." .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_006#assertion> cito:citesAsEvidence <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_006#evidence_1> .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_006#evidence_1> a prov:Entity ;
+    npprop:docId "doc_1" ;
+    npprop:page 4 ;
+    npprop:printedPage "unreported" ;
+    npprop:sectionId "unreported" ;
+    npprop:blockId "unreported" ;
+    npprop:tableId "tbl_2" ;
+    npprop:rowLabel "Total" ;
+    npprop:colHeader "Ocean" ;
+    npprop:cellValue "2,210,000" ;
+    npprop:quoteSha256 "none" ;
+    prov:value "Ocean Total = 2,210,000 ± 182,000 SE." .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_006#pubinfo> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_006> dct:created "2026-11-27T02:41:30Z"^^xsd:dateTime ;
+    pav:createdBy "nanopublication-claims" ;
+    dct:title "Synthetic Cohort and Catalytic Benchmark Study" ;
+    pav:authoredBy "Alice Researcher; Bob Scientist" ;
+    dct:issued "2026" ;
+    schema:isPartOf "Journal of Synthetic Reproducibility" ;
+    dct:identifier "10.0000/synthetic.2026.001" ;
+    dct:license "CC-BY-4.0" ;
+    npprop:sourceFile "/input/synthetic_paper.pdf" ;
+    npprop:fileSha256 "synthetic_sha256_example_only" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_007#Head> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_007> a np:Nanopublication ;
+    np:hasAssertion <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_007#assertion> ;
+    np:hasProvenance <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_007#provenance> ;
+    np:hasPublicationInfo <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_007#pubinfo> .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_007#assertion> {
+  npdoc:entity_Caffeine_200_mg_oral_002e938c rdfs:label "Caffeine (200 mg oral)" ;
+    npprop:decreases "simulated braking reaction time to 0.84 s" .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_007#statement> a rdf:Statement ;
+    rdf:subject npdoc:entity_Caffeine_200_mg_oral_002e938c ;
+    rdf:predicate npprop:decreases ;
+    rdf:object "simulated braking reaction time to 0.84 s" ;
+    rdfs:label "Single 200 mg caffeine dose decreases simulated braking reaction time to 0.84 s." ;
+    npprop:polarity "negative" ;
+    npprop:conditions "Double-blind RCT, n = 50 per arm, 60 min post-dose" ;
+    npprop:statistics "0.84 s vs 0.91 s placebo" ;
+    npprop:studyDesign "rct" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_007#provenance> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_007#assertion> prov:wasGeneratedBy "randomized_crossover_trial" ;
+    npprop:evidenceType "direct_observation" ;
+    npprop:confidence "high" ;
+    npprop:confidenceBasis "Double-blind placebo-controlled trial with explicit unit conflict noted in Table 3." .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_007#assertion> cito:citesAsEvidence <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_007#evidence_1> .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_007#evidence_1> a prov:Entity ;
+    npprop:docId "doc_1" ;
+    npprop:page 5 ;
+    npprop:printedPage "unreported" ;
+    npprop:sectionId "unreported" ;
+    npprop:blockId "unreported" ;
+    npprop:tableId "tbl_3" ;
+    npprop:rowLabel "Caffeine" ;
+    npprop:colHeader "Braking RT (s)" ;
+    npprop:cellValue "0.84" ;
+    npprop:quoteSha256 "none" ;
+    prov:value "Caffeine group mean braking RT was 0.84 s." .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_007#pubinfo> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_007> dct:created "2026-11-27T02:41:30Z"^^xsd:dateTime ;
+    pav:createdBy "nanopublication-claims" ;
+    dct:title "Synthetic Cohort and Catalytic Benchmark Study" ;
+    pav:authoredBy "Alice Researcher; Bob Scientist" ;
+    dct:issued "2026" ;
+    schema:isPartOf "Journal of Synthetic Reproducibility" ;
+    dct:identifier "10.0000/synthetic.2026.001" ;
+    dct:license "CC-BY-4.0" ;
+    npprop:sourceFile "/input/synthetic_paper.pdf" ;
+    npprop:fileSha256 "synthetic_sha256_example_only" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_008#Head> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_008> a np:Nanopublication ;
+    np:hasAssertion <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_008#assertion> ;
+    np:hasProvenance <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_008#provenance> ;
+    np:hasPublicationInfo <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_008#pubinfo> .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_008#assertion> {
+  npdoc:entity_MOF-74_surface_area_BET_34e1ae34 rdfs:label "MOF-74 surface area (BET)" ;
+    npprop:measured_as "1,420 m2/g" .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_008#statement> a rdf:Statement ;
+    rdf:subject npdoc:entity_MOF-74_surface_area_BET_34e1ae34 ;
+    rdf:predicate npprop:measured_as ;
+    rdf:object "1,420 m2/g" ;
+    rdfs:label "Activated MOF-74 exhibits a BET specific surface area of 1,420 m2/g." ;
+    npprop:polarity "neutral" ;
+    npprop:conditions "N2 adsorption at 77 K after 423 K vacuum activation" ;
+    npprop:statistics "1,420 m2/g" ;
+    npprop:studyDesign "experimental" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_008#provenance> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_008#assertion> prov:wasGeneratedBy "bet_isotherm_analysis" ;
+    npprop:evidenceType "direct_observation" ;
+    npprop:confidence "high" ;
+    npprop:confidenceBasis "Direct physical characterization under explicit activation conditions." .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_008#assertion> cito:citesAsEvidence <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_008#evidence_1> .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_008#evidence_1> a prov:Entity ;
+    npprop:docId "doc_1" ;
+    npprop:page 2 ;
+    npprop:printedPage "unreported" ;
+    npprop:sectionId "unreported" ;
+    npprop:blockId "p2_b7" ;
+    npprop:tableId "none" ;
+    npprop:rowLabel "none" ;
+    npprop:colHeader "none" ;
+    npprop:cellValue "none" ;
+    npprop:quoteSha256 "none" ;
+    prov:value "BET surface area of MOF-74 was measured as 1,420 m2/g at 77 K." .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_008#pubinfo> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_008> dct:created "2026-11-27T02:41:30Z"^^xsd:dateTime ;
+    pav:createdBy "nanopublication-claims" ;
+    dct:title "Synthetic Cohort and Catalytic Benchmark Study" ;
+    pav:authoredBy "Alice Researcher; Bob Scientist" ;
+    dct:issued "2026" ;
+    schema:isPartOf "Journal of Synthetic Reproducibility" ;
+    dct:identifier "10.0000/synthetic.2026.001" ;
+    dct:license "CC-BY-4.0" ;
+    npprop:sourceFile "/input/synthetic_paper.pdf" ;
+    npprop:fileSha256 "synthetic_sha256_example_only" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_009#Head> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_009> a np:Nanopublication ;
+    np:hasAssertion <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_009#assertion> ;
+    np:hasProvenance <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_009#provenance> ;
+    np:hasPublicationInfo <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_009#pubinfo> .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_009#assertion> {
+  npdoc:entity_Cu-doped_MOF-74_5cea11c2 rdfs:label "Cu-doped MOF-74" ;
+    npprop:differs_from "pristine MOF-74 turnover frequency (higher by 1.8x)" .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_009#statement> a rdf:Statement ;
+    rdf:subject npdoc:entity_Cu-doped_MOF-74_5cea11c2 ;
+    rdf:predicate npprop:differs_from ;
+    rdf:object "pristine MOF-74 turnover frequency (higher by 1.8x)" ;
+    rdfs:label "Cu-doped MOF-74 exhibits 1.8-fold higher turnover frequency than pristine MOF-74." ;
+    npprop:polarity "positive" ;
+    npprop:conditions "673 K, 1.0 bar, steady-state differential reactor" ;
+    npprop:statistics "1.8x TOF ratio" ;
+    npprop:studyDesign "experimental" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_009#provenance> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_009#assertion> prov:wasGeneratedBy "steady_state_kinetics" ;
+    npprop:evidenceType "direct_observation" ;
+    npprop:confidence "high" ;
+    npprop:confidenceBasis "Direct kinetic comparison under matched temperature and pressure." .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_009#assertion> cito:citesAsEvidence <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_009#evidence_1> .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_009#evidence_1> a prov:Entity ;
+    npprop:docId "doc_1" ;
+    npprop:page 2 ;
+    npprop:printedPage "unreported" ;
+    npprop:sectionId "unreported" ;
+    npprop:blockId "p2_b9" ;
+    npprop:tableId "none" ;
+    npprop:rowLabel "none" ;
+    npprop:colHeader "none" ;
+    npprop:cellValue "none" ;
+    npprop:quoteSha256 "none" ;
+    prov:value "Cu-doped MOF-74 showed a 1.8-fold higher TOF than pristine MOF-74 at 673 K." .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_009#pubinfo> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_009> dct:created "2026-11-27T02:41:30Z"^^xsd:dateTime ;
+    pav:createdBy "nanopublication-claims" ;
+    dct:title "Synthetic Cohort and Catalytic Benchmark Study" ;
+    pav:authoredBy "Alice Researcher; Bob Scientist" ;
+    dct:issued "2026" ;
+    schema:isPartOf "Journal of Synthetic Reproducibility" ;
+    dct:identifier "10.0000/synthetic.2026.001" ;
+    dct:license "CC-BY-4.0" ;
+    npprop:sourceFile "/input/synthetic_paper.pdf" ;
+    npprop:fileSha256 "synthetic_sha256_example_only" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_010#Head> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_010> a np:Nanopublication ;
+    np:hasAssertion <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_010#assertion> ;
+    np:hasProvenance <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_010#provenance> ;
+    np:hasPublicationInfo <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_010#pubinfo> .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_010#assertion> {
+  npdoc:entity_Inhibitor_LY-294_e99fd414 rdfs:label "Inhibitor LY-294" ;
+    npprop:inhibits "PI3K catalytic activity (IC50 = 1.4 uM)" .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_010#statement> a rdf:Statement ;
+    rdf:subject npdoc:entity_Inhibitor_LY-294_e99fd414 ;
+    rdf:predicate npprop:inhibits ;
+    rdf:object "PI3K catalytic activity (IC50 = 1.4 uM)" ;
+    rdfs:label "Inhibitor LY-294 inhibits PI3K catalytic activity with IC50 of 1.4 uM." ;
+    npprop:polarity "negative" ;
+    npprop:conditions "In vitro kinase assay, 25 C, ATP 10 uM" ;
+    npprop:statistics "IC50 = 1.4 ± 0.2 uM" ;
+    npprop:studyDesign "experimental" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_010#provenance> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_010#assertion> prov:wasGeneratedBy "in_vitro_ic50_assay" ;
+    npprop:evidenceType "direct_observation" ;
+    npprop:confidence "high" ;
+    npprop:confidenceBasis "Direct biochemical dose-response measurement." .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_010#assertion> cito:citesAsEvidence <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_010#evidence_1> .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_010#evidence_1> a prov:Entity ;
+    npprop:docId "doc_1" ;
+    npprop:page 3 ;
+    npprop:printedPage "unreported" ;
+    npprop:sectionId "unreported" ;
+    npprop:blockId "p3_b1" ;
+    npprop:tableId "none" ;
+    npprop:rowLabel "none" ;
+    npprop:colHeader "none" ;
+    npprop:cellValue "none" ;
+    npprop:quoteSha256 "none" ;
+    prov:value "LY-294 inhibited PI3K with an IC50 of 1.4 ± 0.2 uM." .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_010#pubinfo> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_010> dct:created "2026-11-27T02:41:30Z"^^xsd:dateTime ;
+    pav:createdBy "nanopublication-claims" ;
+    dct:title "Synthetic Cohort and Catalytic Benchmark Study" ;
+    pav:authoredBy "Alice Researcher; Bob Scientist" ;
+    dct:issued "2026" ;
+    schema:isPartOf "Journal of Synthetic Reproducibility" ;
+    dct:identifier "10.0000/synthetic.2026.001" ;
+    dct:license "CC-BY-4.0" ;
+    npprop:sourceFile "/input/synthetic_paper.pdf" ;
+    npprop:fileSha256 "synthetic_sha256_example_only" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_011#Head> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_011> a np:Nanopublication ;
+    np:hasAssertion <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_011#assertion> ;
+    np:hasProvenance <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_011#provenance> ;
+    np:hasPublicationInfo <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_011#pubinfo> .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_011#assertion> {
+  npdoc:entity_AMPK_phosphorylation_at_Thr172_e7c162f2 rdfs:label "AMPK phosphorylation at Thr172" ;
+    npprop:activates "autophagy flux in hepatocytes" .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_011#statement> a rdf:Statement ;
+    rdf:subject npdoc:entity_AMPK_phosphorylation_at_Thr172_e7c162f2 ;
+    rdf:predicate npprop:activates ;
+    rdf:object "autophagy flux in hepatocytes" ;
+    rdfs:label "AMPK phosphorylation at Thr172 activates autophagy flux in primary hepatocytes." ;
+    npprop:polarity "positive" ;
+    npprop:conditions "In vitro serum starvation, 4 h" ;
+    npprop:statistics "unreported" ;
+    npprop:studyDesign "experimental" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_011#provenance> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_011#assertion> prov:wasGeneratedBy "western_blot_flux_assay" ;
+    npprop:evidenceType "direct_observation" ;
+    npprop:confidence "medium" ;
+    npprop:confidenceBasis "Direct perturbation assay; exact fold-change variance unreported in prose." .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_011#assertion> cito:citesAsEvidence <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_011#evidence_1> .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_011#evidence_1> a prov:Entity ;
+    npprop:docId "doc_1" ;
+    npprop:page 3 ;
+    npprop:printedPage "unreported" ;
+    npprop:sectionId "unreported" ;
+    npprop:blockId "p3_b2" ;
+    npprop:tableId "none" ;
+    npprop:rowLabel "none" ;
+    npprop:colHeader "none" ;
+    npprop:cellValue "none" ;
+    npprop:quoteSha256 "none" ;
+    prov:value "Thr172 phosphorylation of AMPK activated autophagy flux in hepatocytes after 4 h." .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_011#pubinfo> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_011> dct:created "2026-11-27T02:41:30Z"^^xsd:dateTime ;
+    pav:createdBy "nanopublication-claims" ;
+    dct:title "Synthetic Cohort and Catalytic Benchmark Study" ;
+    pav:authoredBy "Alice Researcher; Bob Scientist" ;
+    dct:issued "2026" ;
+    schema:isPartOf "Journal of Synthetic Reproducibility" ;
+    dct:identifier "10.0000/synthetic.2026.001" ;
+    dct:license "CC-BY-4.0" ;
+    npprop:sourceFile "/input/synthetic_paper.pdf" ;
+    npprop:fileSha256 "synthetic_sha256_example_only" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_012#Head> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_012> a np:Nanopublication ;
+    np:hasAssertion <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_012#assertion> ;
+    np:hasProvenance <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_012#provenance> ;
+    np:hasPublicationInfo <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_012#pubinfo> .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_012#assertion> {
+  npdoc:entity_Baseline_serum_creatinine_875d309c rdfs:label "Baseline serum creatinine" ;
+    npprop:predicts "90-day renal readmission risk" .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_012#statement> a rdf:Statement ;
+    rdf:subject npdoc:entity_Baseline_serum_creatinine_875d309c ;
+    rdf:predicate npprop:predicts ;
+    rdf:object "90-day renal readmission risk" ;
+    rdfs:label "Baseline serum creatinine predicts 90-day renal readmission risk (AUC = 0.78)." ;
+    npprop:polarity "positive" ;
+    npprop:conditions "Prospective observational cohort, n = 240" ;
+    npprop:statistics "AUC = 0.78 (95% CI 0.71-0.85)" ;
+    npprop:studyDesign "observational" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_012#provenance> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_012#assertion> prov:wasGeneratedBy "roc_auc_analysis" ;
+    npprop:evidenceType "statistical_comparison" ;
+    npprop:confidence "high" ;
+    npprop:confidenceBasis "Predictive discrimination metric with 95% CI; not framed as causal." .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_012#assertion> cito:citesAsEvidence <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_012#evidence_1> .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_012#evidence_1> a prov:Entity ;
+    npprop:docId "doc_1" ;
+    npprop:page 4 ;
+    npprop:printedPage "unreported" ;
+    npprop:sectionId "unreported" ;
+    npprop:blockId "p4_b2" ;
+    npprop:tableId "none" ;
+    npprop:rowLabel "none" ;
+    npprop:colHeader "none" ;
+    npprop:cellValue "none" ;
+    npprop:quoteSha256 "none" ;
+    prov:value "Baseline serum creatinine predicted 90-day readmission with AUC = 0.78 (95% CI 0.71-0.85)." .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_012#pubinfo> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_012> dct:created "2026-11-27T02:41:30Z"^^xsd:dateTime ;
+    pav:createdBy "nanopublication-claims" ;
+    dct:title "Synthetic Cohort and Catalytic Benchmark Study" ;
+    pav:authoredBy "Alice Researcher; Bob Scientist" ;
+    dct:issued "2026" ;
+    schema:isPartOf "Journal of Synthetic Reproducibility" ;
+    dct:identifier "10.0000/synthetic.2026.001" ;
+    dct:license "CC-BY-4.0" ;
+    npprop:sourceFile "/input/synthetic_paper.pdf" ;
+    npprop:fileSha256 "synthetic_sha256_example_only" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_013#Head> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_013> a np:Nanopublication ;
+    np:hasAssertion <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_013#assertion> ;
+    np:hasProvenance <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_013#provenance> ;
+    np:hasPublicationInfo <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_013#pubinfo> .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_013#assertion> {
+  npdoc:entity_Langmuir-Hinshelwood_kinetic_rate_constant_57703656 rdfs:label "Langmuir-Hinshelwood kinetic rate constant" ;
+    npprop:derived_from "nonlinear regression (R2 = 0.987)" .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_013#statement> a rdf:Statement ;
+    rdf:subject npdoc:entity_Langmuir-Hinshelwood_kinetic_rate_constant_57703656 ;
+    rdf:predicate npprop:derived_from ;
+    rdf:object "nonlinear regression (R2 = 0.987)" ;
+    rdfs:label "The Langmuir-Hinshelwood rate constant was derived from steady-state isothermal regression." ;
+    npprop:polarity "neutral" ;
+    npprop:conditions "623-723 K, zero mass-transfer limitation assumed" ;
+    npprop:statistics "R2 = 0.987" ;
+    npprop:studyDesign "computational_model" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_013#provenance> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_013#assertion> prov:wasGeneratedBy "nonlinear_least_squares_fit" ;
+    npprop:evidenceType "indirect_inference" ;
+    npprop:confidence "medium" ;
+    npprop:confidenceBasis "Model parameter fit conditioned on assumed absence of internal diffusion limitation." .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_013#assertion> cito:citesAsEvidence <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_013#evidence_1> .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_013#evidence_1> a prov:Entity ;
+    npprop:docId "doc_1" ;
+    npprop:page 4 ;
+    npprop:printedPage "unreported" ;
+    npprop:sectionId "unreported" ;
+    npprop:blockId "p4_b5" ;
+    npprop:tableId "none" ;
+    npprop:rowLabel "none" ;
+    npprop:colHeader "none" ;
+    npprop:cellValue "none" ;
+    npprop:quoteSha256 "none" ;
+    prov:value "Kinetic constants were derived from nonlinear regression (R2 = 0.987) assuming negligible diffusion limits." .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_013#pubinfo> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_013> dct:created "2026-11-27T02:41:30Z"^^xsd:dateTime ;
+    pav:createdBy "nanopublication-claims" ;
+    dct:title "Synthetic Cohort and Catalytic Benchmark Study" ;
+    pav:authoredBy "Alice Researcher; Bob Scientist" ;
+    dct:issued "2026" ;
+    schema:isPartOf "Journal of Synthetic Reproducibility" ;
+    dct:identifier "10.0000/synthetic.2026.001" ;
+    dct:license "CC-BY-4.0" ;
+    npprop:sourceFile "/input/synthetic_paper.pdf" ;
+    npprop:fileSha256 "synthetic_sha256_example_only" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_014#Head> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_014> a np:Nanopublication ;
+    np:hasAssertion <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_014#assertion> ;
+    np:hasProvenance <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_014#provenance> ;
+    np:hasPublicationInfo <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_014#pubinfo> .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_014#assertion> {
+  npdoc:entity_Low-dose_aspirin_prophylaxis_d057fac5 rdfs:label "Low-dose aspirin prophylaxis" ;
+    npprop:fails_to_show "reduction in primary composite endpoint" .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_014#statement> a rdf:Statement ;
+    rdf:subject npdoc:entity_Low-dose_aspirin_prophylaxis_d057fac5 ;
+    rdf:predicate npprop:fails_to_show ;
+    rdf:object "reduction in primary composite endpoint" ;
+    rdfs:label "Low-dose aspirin failed to show reduction in the primary composite endpoint." ;
+    npprop:polarity "no_difference" ;
+    npprop:conditions "Older adult cohort, median follow-up 4.7 years" ;
+    npprop:statistics "HR = 1.01 (95% CI 0.92-1.11, p = 0.79)" ;
+    npprop:studyDesign "rct" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_014#provenance> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_014#assertion> prov:wasGeneratedBy "cox_proportional_hazards" ;
+    npprop:evidenceType "statistical_comparison" ;
+    npprop:confidence "high" ;
+    npprop:confidenceBasis "Null trial endpoint explicitly backed by HR and 95% CI." .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_014#assertion> cito:citesAsEvidence <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_014#evidence_1> .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_014#evidence_1> a prov:Entity ;
+    npprop:docId "doc_1" ;
+    npprop:page 5 ;
+    npprop:printedPage "unreported" ;
+    npprop:sectionId "unreported" ;
+    npprop:blockId "p5_b1" ;
+    npprop:tableId "none" ;
+    npprop:rowLabel "none" ;
+    npprop:colHeader "none" ;
+    npprop:cellValue "none" ;
+    npprop:quoteSha256 "none" ;
+    prov:value "Aspirin failed to reduce the primary endpoint (HR = 1.01, 95% CI 0.92-1.11, p = 0.79)." .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_014#pubinfo> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_014> dct:created "2026-11-27T02:41:30Z"^^xsd:dateTime ;
+    pav:createdBy "nanopublication-claims" ;
+    dct:title "Synthetic Cohort and Catalytic Benchmark Study" ;
+    pav:authoredBy "Alice Researcher; Bob Scientist" ;
+    dct:issued "2026" ;
+    schema:isPartOf "Journal of Synthetic Reproducibility" ;
+    dct:identifier "10.0000/synthetic.2026.001" ;
+    dct:license "CC-BY-4.0" ;
+    npprop:sourceFile "/input/synthetic_paper.pdf" ;
+    npprop:fileSha256 "synthetic_sha256_example_only" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_015#Head> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_015> a np:Nanopublication ;
+    np:hasAssertion <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_015#assertion> ;
+    np:hasProvenance <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_015#provenance> ;
+    np:hasPublicationInfo <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_015#pubinfo> .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_015#assertion> {
+  npdoc:entity_GO_nanosheet_suspension_0_5_mg_mL_bbd0c846 rdfs:label "GO nanosheet suspension (0.5 mg/mL)" ;
+    npprop:characterized_by "zeta potential of -38.4 mV at pH 7.0" .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_015#statement> a rdf:Statement ;
+    rdf:subject npdoc:entity_GO_nanosheet_suspension_0_5_mg_mL_bbd0c846 ;
+    rdf:predicate npprop:characterized_by ;
+    rdf:object "zeta potential of -38.4 mV at pH 7.0" ;
+    rdfs:label "GO nanosheet suspension exhibits a zeta potential of -38.4 mV at pH 7.0." ;
+    npprop:polarity "neutral" ;
+    npprop:conditions "Deionized water, pH 7.0, 298 K" ;
+    npprop:statistics "-38.4 ± 1.5 mV" ;
+    npprop:studyDesign "experimental" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_015#provenance> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_015#assertion> prov:wasGeneratedBy "electrophoretic_light_scattering" ;
+    npprop:evidenceType "direct_observation" ;
+    npprop:confidence "high" ;
+    npprop:confidenceBasis "Direct colloidal measurement with pH and temperature specified." .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_015#assertion> cito:citesAsEvidence <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_015#evidence_1> .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_015#evidence_1> a prov:Entity ;
+    npprop:docId "doc_1" ;
+    npprop:page 5 ;
+    npprop:printedPage "unreported" ;
+    npprop:sectionId "unreported" ;
+    npprop:blockId "p5_b3" ;
+    npprop:tableId "none" ;
+    npprop:rowLabel "none" ;
+    npprop:colHeader "none" ;
+    npprop:cellValue "none" ;
+    npprop:quoteSha256 "none" ;
+    prov:value "GO suspension exhibited a zeta potential of -38.4 ± 1.5 mV at pH 7.0 and 298 K." .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_015#pubinfo> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_015> dct:created "2026-11-27T02:41:30Z"^^xsd:dateTime ;
+    pav:createdBy "nanopublication-claims" ;
+    dct:title "Synthetic Cohort and Catalytic Benchmark Study" ;
+    pav:authoredBy "Alice Researcher; Bob Scientist" ;
+    dct:issued "2026" ;
+    schema:isPartOf "Journal of Synthetic Reproducibility" ;
+    dct:identifier "10.0000/synthetic.2026.001" ;
+    dct:license "CC-BY-4.0" ;
+    npprop:sourceFile "/input/synthetic_paper.pdf" ;
+    npprop:fileSha256 "synthetic_sha256_example_only" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_016#Head> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_016> a np:Nanopublication ;
+    np:hasAssertion <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_016#assertion> ;
+    np:hasProvenance <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_016#provenance> ;
+    np:hasPublicationInfo <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_016#pubinfo> .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_016#assertion> {
+  npdoc:entity_FESEM_elemental_EDS_measurement_7d9bdcc1 rdfs:label "FESEM elemental EDS measurement" ;
+    npprop:characterized_by "20 kV accelerating voltage (synthesis temperature unreported for EDS batch)" .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_016#statement> a rdf:Statement ;
+    rdf:subject npdoc:entity_FESEM_elemental_EDS_measurement_7d9bdcc1 ;
+    rdf:predicate npprop:characterized_by ;
+    rdf:object "20 kV accelerating voltage (synthesis temperature unreported for EDS batch)" ;
+    rdfs:label "FESEM EDS elemental analysis operated at 20 kV; sample synthesis temperature was unreported." ;
+    npprop:polarity "neutral" ;
+    npprop:conditions "20 kV EDS mode; morphology images used separate 2 kV mode" ;
+    npprop:statistics "unreported" ;
+    npprop:studyDesign "experimental" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_016#provenance> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_016#assertion> prov:wasGeneratedBy "fesem_eds_protocol" ;
+    npprop:evidenceType "direct_observation" ;
+    npprop:confidence "high" ;
+    npprop:confidenceBasis "Explicitly avoids transferring 24 C temperature from Fig 3 morphology caption onto EDS batch." .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_016#assertion> cito:citesAsEvidence <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_016#evidence_1> .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_016#evidence_1> a prov:Entity ;
+    npprop:docId "doc_1" ;
+    npprop:page 5 ;
+    npprop:printedPage "unreported" ;
+    npprop:sectionId "unreported" ;
+    npprop:blockId "p5_b5" ;
+    npprop:tableId "none" ;
+    npprop:rowLabel "none" ;
+    npprop:colHeader "none" ;
+    npprop:cellValue "none" ;
+    npprop:quoteSha256 "none" ;
+    prov:value "FESEM with EDS operated at 2 kV for morphology and 20 kV for elemental analysis." .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_016#pubinfo> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_016> dct:created "2026-11-27T02:41:30Z"^^xsd:dateTime ;
+    pav:createdBy "nanopublication-claims" ;
+    dct:title "Synthetic Cohort and Catalytic Benchmark Study" ;
+    pav:authoredBy "Alice Researcher; Bob Scientist" ;
+    dct:issued "2026" ;
+    schema:isPartOf "Journal of Synthetic Reproducibility" ;
+    dct:identifier "10.0000/synthetic.2026.001" ;
+    dct:license "CC-BY-4.0" ;
+    npprop:sourceFile "/input/synthetic_paper.pdf" ;
+    npprop:fileSha256 "synthetic_sha256_example_only" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_017#Head> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_017> a np:Nanopublication ;
+    np:hasAssertion <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_017#assertion> ;
+    np:hasProvenance <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_017#provenance> ;
+    np:hasPublicationInfo <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_017#pubinfo> .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_017#assertion> {
+  npdoc:entity_Metformin_adjunct_therapy_ef988e29 rdfs:label "Metformin adjunct therapy" ;
+    npprop:treats_or_improves "HbA1c reduction (-0.9 percentage points)" .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_017#statement> a rdf:Statement ;
+    rdf:subject npdoc:entity_Metformin_adjunct_therapy_ef988e29 ;
+    rdf:predicate npprop:treats_or_improves ;
+    rdf:object "HbA1c reduction (-0.9 percentage points)" ;
+    rdfs:label "Metformin adjunct therapy improves HbA1c by -0.9 percentage points at 24 weeks." ;
+    npprop:polarity "positive" ;
+    npprop:conditions "24-week RCT, 1000 mg/day, n = 120" ;
+    npprop:statistics "-0.9% (p < 0.001)" ;
+    npprop:studyDesign "rct" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_017#provenance> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_017#assertion> prov:wasGeneratedBy "rct_primary_endpoint" ;
+    npprop:evidenceType "statistical_comparison" ;
+    npprop:confidence "high" ;
+    npprop:confidenceBasis "Randomized controlled endpoint with exact sample size and follow-up duration." .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_017#assertion> cito:citesAsEvidence <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_017#evidence_1> .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_017#evidence_1> a prov:Entity ;
+    npprop:docId "doc_1" ;
+    npprop:page 6 ;
+    npprop:printedPage "unreported" ;
+    npprop:sectionId "unreported" ;
+    npprop:blockId "p6_b1" ;
+    npprop:tableId "none" ;
+    npprop:rowLabel "none" ;
+    npprop:colHeader "none" ;
+    npprop:cellValue "none" ;
+    npprop:quoteSha256 "none" ;
+    prov:value "Metformin improved HbA1c by -0.9 percentage points over 24 weeks (n = 120, p < 0.001)." .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_017#pubinfo> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_017> dct:created "2026-11-27T02:41:30Z"^^xsd:dateTime ;
+    pav:createdBy "nanopublication-claims" ;
+    dct:title "Synthetic Cohort and Catalytic Benchmark Study" ;
+    pav:authoredBy "Alice Researcher; Bob Scientist" ;
+    dct:issued "2026" ;
+    schema:isPartOf "Journal of Synthetic Reproducibility" ;
+    dct:identifier "10.0000/synthetic.2026.001" ;
+    dct:license "CC-BY-4.0" ;
+    npprop:sourceFile "/input/synthetic_paper.pdf" ;
+    npprop:fileSha256 "synthetic_sha256_example_only" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_018#Head> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_018> a np:Nanopublication ;
+    np:hasAssertion <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_018#assertion> ;
+    np:hasProvenance <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_018#provenance> ;
+    np:hasPublicationInfo <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_018#pubinfo> .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_018#assertion> {
+  npdoc:entity_Gene_knock-in_X1_cba86e32 rdfs:label "Gene knock-in X1" ;
+    npprop:causes "2.4-fold increase in hepatic lipid accumulation" .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_018#statement> a rdf:Statement ;
+    rdf:subject npdoc:entity_Gene_knock-in_X1_cba86e32 ;
+    rdf:predicate npprop:causes ;
+    rdf:object "2.4-fold increase in hepatic lipid accumulation" ;
+    rdfs:label "Targeted X1 knock-in causes a 2.4-fold increase in hepatic lipid accumulation." ;
+    npprop:polarity "positive" ;
+    npprop:conditions "C57BL/6J mice, high-fat diet 8 weeks, n = 12 per genotype" ;
+    npprop:statistics "2.4-fold (p = 0.004)" ;
+    npprop:studyDesign "experimental" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_018#provenance> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_018#assertion> prov:wasGeneratedBy "genetic_knockin_perturbation" ;
+    npprop:evidenceType "direct_observation" ;
+    npprop:confidence "high" ;
+    npprop:confidenceBasis "Controlled experimental genetic perturbation supports causal predicate." .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_018#assertion> cito:citesAsEvidence <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_018#evidence_1> .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_018#evidence_1> a prov:Entity ;
+    npprop:docId "doc_1" ;
+    npprop:page 6 ;
+    npprop:printedPage "unreported" ;
+    npprop:sectionId "unreported" ;
+    npprop:blockId "p6_b2" ;
+    npprop:tableId "none" ;
+    npprop:rowLabel "none" ;
+    npprop:colHeader "none" ;
+    npprop:cellValue "none" ;
+    npprop:quoteSha256 "none" ;
+    prov:value "Targeted X1 knock-in caused a 2.4-fold increase in hepatic lipids (p = 0.004)." .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_018#pubinfo> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_018> dct:created "2026-11-27T02:41:30Z"^^xsd:dateTime ;
+    pav:createdBy "nanopublication-claims" ;
+    dct:title "Synthetic Cohort and Catalytic Benchmark Study" ;
+    pav:authoredBy "Alice Researcher; Bob Scientist" ;
+    dct:issued "2026" ;
+    schema:isPartOf "Journal of Synthetic Reproducibility" ;
+    dct:identifier "10.0000/synthetic.2026.001" ;
+    dct:license "CC-BY-4.0" ;
+    npprop:sourceFile "/input/synthetic_paper.pdf" ;
+    npprop:fileSha256 "synthetic_sha256_example_only" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_019#Head> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_019> a np:Nanopublication ;
+    np:hasAssertion <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_019#assertion> ;
+    np:hasProvenance <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_019#provenance> ;
+    np:hasPublicationInfo <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_019#pubinfo> .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_019#assertion> {
+  npdoc:entity_AlphaFold2_CASP14_backbone_accuracy_363b70f9 rdfs:label "AlphaFold2 CASP14 backbone accuracy" ;
+    npprop:measured_as "0.96 A median C-alpha r.m.s.d.95" .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_019#statement> a rdf:Statement ;
+    rdf:subject npdoc:entity_AlphaFold2_CASP14_backbone_accuracy_363b70f9 ;
+    rdf:predicate npprop:measured_as ;
+    rdf:object "0.96 A median C-alpha r.m.s.d.95" ;
+    rdfs:label "AlphaFold2 achieves 0.96 A median C-alpha r.m.s.d.95 on CASP14 domains." ;
+    npprop:polarity "neutral" ;
+    npprop:conditions "CASP14 evaluation domains, 95% residue coverage" ;
+    npprop:statistics "95% CI 0.85-1.16 A" ;
+    npprop:studyDesign "computational_model" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_019#provenance> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_019#assertion> prov:wasGeneratedBy "casp14_benchmark_evaluation" ;
+    npprop:evidenceType "direct_observation" ;
+    npprop:confidence "high" ;
+    npprop:confidenceBasis "Direct benchmark measurement with metric definition and 95% CI." .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_019#assertion> cito:citesAsEvidence <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_019#evidence_1> .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_019#evidence_1> a prov:Entity ;
+    npprop:docId "doc_1" ;
+    npprop:page 6 ;
+    npprop:printedPage "unreported" ;
+    npprop:sectionId "unreported" ;
+    npprop:blockId "p6_b3" ;
+    npprop:tableId "none" ;
+    npprop:rowLabel "none" ;
+    npprop:colHeader "none" ;
+    npprop:cellValue "none" ;
+    npprop:quoteSha256 "none" ;
+    prov:value "AlphaFold achieved 0.96 A median Ca r.m.s.d.95 (95% CI 0.85-1.16 A) on CASP14." .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_019#pubinfo> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_019> dct:created "2026-11-27T02:41:30Z"^^xsd:dateTime ;
+    pav:createdBy "nanopublication-claims" ;
+    dct:title "Synthetic Cohort and Catalytic Benchmark Study" ;
+    pav:authoredBy "Alice Researcher; Bob Scientist" ;
+    dct:issued "2026" ;
+    schema:isPartOf "Journal of Synthetic Reproducibility" ;
+    dct:identifier "10.0000/synthetic.2026.001" ;
+    dct:license "CC-BY-4.0" ;
+    npprop:sourceFile "/input/synthetic_paper.pdf" ;
+    npprop:fileSha256 "synthetic_sha256_example_only" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_020#Head> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_020> a np:Nanopublication ;
+    np:hasAssertion <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_020#assertion> ;
+    np:hasProvenance <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_020#provenance> ;
+    np:hasPublicationInfo <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_020#pubinfo> .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_020#assertion> {
+  npdoc:entity_Reactor_wall_heat-transfer_coefficient_5ee69da8 rdfs:label "Reactor wall heat-transfer coefficient" ;
+    npprop:not_reported "empirical parameter value" .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_020#statement> a rdf:Statement ;
+    rdf:subject npdoc:entity_Reactor_wall_heat-transfer_coefficient_5ee69da8 ;
+    rdf:predicate npprop:not_reported ;
+    rdf:object "empirical parameter value" ;
+    rdfs:label "Reactor wall heat-transfer coefficient is not reported in the primary text or tables." ;
+    npprop:polarity "unreported" ;
+    npprop:conditions "Checked Methods and Table 1; supplementary appendix unavailable" ;
+    npprop:statistics "unreported" ;
+    npprop:studyDesign "unreported" .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_020#provenance> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_020#assertion> prov:wasGeneratedBy "negative_completeness_check" ;
+    npprop:evidenceType "direct_observation" ;
+    npprop:confidence "high" ;
+    npprop:confidenceBasis "Explicitly documents absence rather than fabricating parameter values." .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_020#assertion> cito:citesAsEvidence <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_020#evidence_1> .
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_020#evidence_1> a prov:Entity ;
+    npprop:docId "doc_1" ;
+    npprop:page 2 ;
+    npprop:printedPage "unreported" ;
+    npprop:sectionId "unreported" ;
+    npprop:blockId "p2_b1" ;
+    npprop:tableId "none" ;
+    npprop:rowLabel "none" ;
+    npprop:colHeader "none" ;
+    npprop:cellValue "none" ;
+    npprop:quoteSha256 "none" ;
+    prov:value "Experiments were conducted in a stainless-steel tubular reactor." .
+}
+
+<http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_020#pubinfo> {
+  <http://purl.org/nanopub/local/example_nanopub_20_synthetic/np_020> dct:created "2026-11-27T02:41:30Z"^^xsd:dateTime ;
+    pav:createdBy "nanopublication-claims" ;
+    dct:title "Synthetic Cohort and Catalytic Benchmark Study" ;
+    pav:authoredBy "Alice Researcher; Bob Scientist" ;
+    dct:issued "2026" ;
+    schema:isPartOf "Journal of Synthetic Reproducibility" ;
+    dct:identifier "10.0000/synthetic.2026.001" ;
+    dct:license "CC-BY-4.0" ;
+    npprop:sourceFile "/input/synthetic_paper.pdf" ;
+    npprop:fileSha256 "synthetic_sha256_example_only" .
+}

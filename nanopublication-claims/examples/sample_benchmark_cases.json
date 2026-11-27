@@ -1,0 +1,42 @@
+{
+  "_notice": "SYNTHETIC REUSABLE EXAMPLE DATASET ONLY — NOT OFFICIAL PLATFORM TEST CASES OR PREPARED ANSWERS.",
+  "schema_version": "nanopub-benchmark-cases/v1",
+  "cases": [
+    {
+      "id": "synth_case_01_compound_and_observational",
+      "scenario": "Compound claim splitting + observational cohort non-significant p-value (p = 0.33) + damaged PDF inequality (p ,0.03)",
+      "target_checks": [
+        "Split 'Compound X increases Y and decreases Z' into 2 independent assertions",
+        "Classify age comparison (p = 0.33) as no_significant_difference, reject 'identical'",
+        "Reject predicate='causes' when study_design='observational'",
+        "Flag stat_glyph_anomaly 'p ,0.03' for targeted crop/OCR review"
+      ]
+    },
+    {
+      "id": "synth_case_02_table_cell_grounding",
+      "scenario": "Multi-row table cell attribution + extrapolation confidence calibration (inspired by biodiversity/catalysis tables)",
+      "target_checks": [
+        "Bind Earth value to (table_id='tbl_1', row_label='Earth', col_header='Estimate', value='8,740,000')",
+        "Reject row-swap trap (citing Ocean value 2,210,000 under Earth)",
+        "Reject confidence='high' when extraction_method='higher_taxon_extrapolation'"
+      ]
+    },
+    {
+      "id": "synth_case_03_jats_xml_pubinfo_and_conflict",
+      "scenario": "JATS XML multi-document PubInfo author-vs-editor filtering + abstract-vs-table numeric conflict",
+      "target_checks": [
+        "Exclude contrib-type='editor' from pubinfo.authors",
+        "Prevent patch.json from overwriting locked DOI/authors",
+        "Preserve both conflicting figures with separate evidence_anchors and log in conflicts[]"
+      ]
+    },
+    {
+      "id": "synth_case_04_blocked_and_scanned_pdf",
+      "scenario": "Corrupt header / encrypted PDF blocking + image-only scanned page OCR fallback",
+      "target_checks": [
+        "Emit status='blocked' on invalid PDF header without fabricating claims",
+        "Detect scanned page and trigger targeted render/OCR without exceeding 4-page cap"
+      ]
+    }
+  ]
+}

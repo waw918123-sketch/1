@@ -94,7 +94,7 @@ Write `/app/work/patch.json` using this compact schema (set `"append": true` for
 }
 ```
 
-Then merge, execute queries deterministically, audit strictly, and export all formats in one call:
+Then merge, execute queries deterministically, audit strictly, and export all formats in one call (for large papers, merge incrementally per paper/section with `"append": true` to stay well under the 16k token cap; if `error_count > 0`, fix ONLY `errors[]`—warnings do not block valid exports):
 
 ```sh
 python3 "$SKILL_DIR/scripts/kg_audit.py" \

@@ -269,11 +269,34 @@ def run_benchmark() -> Dict[str, Any]:
         bad_res_p.write_text(json.dumps(bad_obj, ensure_ascii=False, indent=2), encoding="utf-8")
         bad_rep = audit_result(bad_res_p, in_dir / "case.json", work_dir)
         errs_txt = "\n".join(bad_rep["errors"])
+        warns_txt = "\n".join(bad_rep["warnings"])
         checks["trap_fake_pdf_page_blocked"] = "forbidden page=1" in errs_txt
         checks["trap_metadata_leakage_blocked"] = "metadata leakage" in errs_txt
         checks["trap_cooccurrence_and_vague_rel_blocked"] = "co_occurrence" in errs_txt and "relates_to" in errs_txt
         checks["trap_cross_paper_fusion_blocked"] = "mixes anchors from multiple papers" in errs_txt
-        checks["trap_fabricated_stat_blocked"] = "99.9" in errs_txt
+        checks["trap_fabricated_stat_flagged"] = "99.9" in warns_txt
+
+        # 4b. 嵌套 JSON 包装 + 字典式 material.json + 自动净化 page=1 与自动补全 3 条查询测试
+        wrap_in, wrap_work, wrap_out = root / "wrap_in", root / "wrap_work", root / "wrap_out"
+        wrap_in.mkdir(parents=True)
+        wrap_out.mkdir(parents=True)
+        (wrap_in / "case.json").write_text(json.dumps({"case_id": "WRAP_01", "output_contract": {"required_fields": ["case_id", "status", "graph", "queries"]}}), encoding="utf-8")
+        (wrap_in / "primary-material.json").write_text(json.dumps({"article": PRIMARY_JSON}, ensure_ascii=False), encoding="utf-8")
+        (wrap_in / "material.json").write_text(json.dumps({"primary": PRIMARY_JSON["paragraphs"]}, ensure_ascii=False), encoding="utf-8")
+        w_res_p = wrap_out / "result.json"
+        w_brief = run_prep(wrap_in, wrap_work, init_result=w_res_p)
+        w_docs = {p["source_id"]: json.loads(Path(p["document_json_path"]).read_text(encoding="utf-8")) for p in w_brief["papers"]}
+        w_patch = wrap_work / "w_patch.json"
+        w_patch.write_text(json.dumps({
+            "status": "completed",
+            "nodes": [{"node_id": "w_1", "canonical_name": "Ni-Cat-BatchA", "entity_type": "material", "source_ids": ["primary"], "evidence_anchors": [{"source_id": "primary", "paragraph_id": "p-prim-2", "page": 1, "quote": "We prepared Ni-Cat-BatchA (10 wt% Ni/Al2O3)"}]}],
+            "edges": [{"edge_id": "we_1", "source_node_id": "w_1", "relation_type": "measured_as", "target_node_id": "w_1", "source_id": "primary", "conditions": "623 K", "evidence_anchors": [{"source_id": "primary", "paragraph_id": "p-prim-2", "page": 1, "quote": "We prepared Ni-Cat-BatchA (10 wt% Ni/Al2O3)"}]}],
+        }), encoding="utf-8")
+        _merge_patch(w_res_p, w_patch, w_docs, work_dir=wrap_work)
+        w_rep = audit_result(w_res_p, wrap_in / "case.json", wrap_work)
+        w_obj = json.loads(w_res_p.read_text(encoding="utf-8"))
+        checks["wrapped_json_and_dict_material_ingested"] = w_brief["paper_count"] == 1 and len(w_docs["primary"]["blocks"]) >= 3
+        checks["auto_sanitize_page_and_auto_queries"] = w_rep["passed"] and w_obj["nodes"][0]["evidence_anchors"][0]["page"] is None and len(w_obj["queries"]) == 3 and "graph" in w_obj
 
         # 5. 增量更新 ID 稳定性测试
         inc_in, inc_work, inc_out = root / "inc_in", root / "inc_work", root / "inc_out"

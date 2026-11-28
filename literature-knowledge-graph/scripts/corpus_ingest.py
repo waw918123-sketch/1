@@ -415,9 +415,20 @@ def _extract_markdown_tables(lines: List[str]) -> List[Dict[str, Any]]:
     return tables
 
 
+def _unwrap_paper_json(raw: Any) -> Any:
+    if isinstance(raw, dict):
+        for wk in ("paper", "article", "document", "data", "record"):
+            sub = raw.get(wk)
+            if isinstance(sub, dict) and any(k in sub for k in ("paragraphs", "blocks", "sections", "abstract", "body", "content", "chunks", "passages", "full_text")):
+                merged = {k: v for k, v in raw.items() if k != wk}
+                merged.update(sub)
+                return merged
+    return raw
+
+
 def _ingest_structured_paper_json(json_path: Path, manifest_meta: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """解析 primary-material.json / secondary-material.json 等结构化论文 JSON，完整保留 paragraph_id。"""
-    raw = json.loads(json_path.read_text(encoding="utf-8"))
+    raw = _unwrap_paper_json(json.loads(json_path.read_text(encoding="utf-8")))
     manifest_meta = manifest_meta or {}
 
     meta_obj = raw.get("metadata") if isinstance(raw, dict) and isinstance(raw.get("metadata"), dict) else (raw if isinstance(raw, dict) else {})
@@ -1024,11 +1035,11 @@ def _is_base_graph_json(path: Path) -> bool:
 
 def _is_structured_paper_json(path: Path) -> bool:
     try:
-        obj = json.loads(path.read_text(encoding="utf-8"))
+        obj = _unwrap_paper_json(json.loads(path.read_text(encoding="utf-8")))
     except Exception:
         return False
     if isinstance(obj, dict):
-        return any(k in obj for k in ("paragraphs", "blocks", "sections", "abstract", "body", "content", "chunks"))
+        return any(k in obj for k in ("paragraphs", "blocks", "sections", "abstract", "body", "content", "chunks", "passages", "full_text"))
     if isinstance(obj, list) and obj and isinstance(obj[0], dict):
         return any(k in obj[0] for k in ("text", "content", "paragraph_id", "body"))
     return False
@@ -1047,11 +1058,24 @@ def _is_combined_material_index(path: Path) -> Tuple[bool, List[Dict[str, Any]]]
             if isinstance(obj.get(k), list):
                 items = obj[k]
                 break
+        if items is None:
+            # 支持 {"primary": [...], "secondary": [...]} 字典格式
+            grouped_items: List[Dict[str, Any]] = []
+            for sk, sv in obj.items():
+                if isinstance(sv, list) and sv and isinstance(sv[0], dict):
+                    for it in sv:
+                        grouped_items.append({"source_id": sk, **it})
+                elif isinstance(sv, dict) and isinstance(sv.get("paragraphs"), list):
+                    for it in sv["paragraphs"]:
+                        if isinstance(it, dict):
+                            grouped_items.append({"source_id": sk, **it})
+            if grouped_items:
+                items = grouped_items
     if not items or not isinstance(items[0], dict):
         return False, []
     sids = {str(it.get("source_id") or it.get("doc_id") or it.get("paper_id") or "").strip() for it in items if isinstance(it, dict)}
     sids.discard("")
-    return (len(sids) >= 2 or path.name.lower() == "material.json"), [it for it in items if isinstance(it, dict)]
+    return (len(sids) >= 2 or path.name.lower() in ("material.json", "materials.json")), [it for it in items if isinstance(it, dict)]
 
 
 def ingest_single_file(file_path: Path, manifest_meta: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:

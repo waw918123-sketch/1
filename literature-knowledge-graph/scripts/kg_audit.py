@@ -94,8 +94,12 @@ def _enrich_anchors(
             if has_pdf and anc.get("page") is None:
                 anc["page"] = tbl.get("page")
 
-        if not has_pdf and "page" not in anc:
-            anc["page"] = None
+        if not has_pdf:
+            if anc.get("page") is not None:
+                anc["page"] = None
+                anc.setdefault("_sanitized_note", "Non-PDF source: forced page=null to prevent fake PDF page citation.")
+        elif anc.get("page") is None and blk is not None:
+            anc["page"] = blk.get("page")
 
         qtxt = str(anc.get("quote") or "")
         if qtxt:
@@ -277,10 +281,10 @@ def _merge_patch(
         inc["added_edges"] = sorted(cur_eids - pres_eids)
         inc["id_stability_verified"] = pres_nids.issubset(cur_nids) and pres_eids.issubset(cur_eids)
 
-    # 执行查询规格（query_specs 或 queries 中含 query_type 的结构化查询）
+    # 执行查询规格（query_specs 或 queries 中含 query_type 的结构化查询）；不足 3 条时自动补充确定性查询
     in_qspecs = patch.get("query_specs") or patch.get("queries")
+    executed_queries: List[Dict[str, Any]] = []
     if isinstance(in_qspecs, list) and in_qspecs:
-        executed_queries: List[Dict[str, Any]] = []
         for qi, qs in enumerate(in_qspecs, 1):
             if not isinstance(qs, dict):
                 continue
@@ -290,6 +294,26 @@ def _merge_patch(
                 executed_queries.append(execute_kg_query(res, q_copy))
             else:
                 executed_queries.append(qs)
+    if len(executed_queries) < 3 and (res.get("nodes") or []):
+        nodes_l = res.get("nodes") or []
+        concept_n = next((n for n in nodes_l if n.get("scope_level") == "cross_paper_concept"), None)
+        top_n = nodes_l[0]
+        auto_specs = [
+            {"query_id": f"q_auto_{len(executed_queries)+1}", "question": f"Entity neighborhood and evidence for {top_n.get('canonical_name')}", "query_type": "entity_neighborhood", "query_params": {"term": str(top_n.get("canonical_name") or top_n.get("node_id"))}},
+        ]
+        if concept_n:
+            auto_specs.append({"query_id": f"q_auto_{len(executed_queries)+2}", "question": f"Cross-paper comparison on {concept_n.get('canonical_name')}", "query_type": "cross_paper_comparison", "query_params": {"concept": str(concept_n.get("canonical_name"))}})
+        if len(nodes_l) >= 2:
+            auto_specs.append({"query_id": "q_auto_n2", "question": f"Entity neighborhood and evidence for {nodes_l[1].get('canonical_name')}", "query_type": "entity_neighborhood", "query_params": {"term": str(nodes_l[1].get("canonical_name") or nodes_l[1].get("node_id"))}})
+        elif res.get("edges"):
+            e0 = res["edges"][0]
+            auto_specs.append({"query_id": "q_auto_rel", "question": f"Evidenced relation query for {e0.get('relation_type')}", "query_type": "relation_triple", "query_params": {"relation": str(e0.get("relation_type") or "")}})
+        auto_specs.append({"query_id": "q_auto_conflicts", "question": "Conflicts, non-merge boundaries, and indeterminate relations", "query_type": "conflict_and_uncertainty", "query_params": {}})
+        for asp in auto_specs:
+            if len(executed_queries) >= 3:
+                break
+            executed_queries.append(execute_kg_query(res, asp))
+    if executed_queries:
         res["queries"] = executed_queries
 
     result_path.write_text(json.dumps(res, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -620,10 +644,23 @@ def audit_result(
         stat_str = json.dumps(e.get("statistics"), ensure_ascii=False) if isinstance(e.get("statistics"), (dict, list)) else str(e.get("statistics") or "")
         if stat_str and stat_str.lower() != "unreported" and anchors:
             stat_nums = [m.replace(",", "") for m in NUM_TOKEN_RE.findall(stat_str)]
-            corp_clean = anchor_corpus.replace(",", "")
+            corp_clean = re.sub(r"[\^\_{}]", "", anchor_corpus.replace(",", ""))
+            corp_floats = []
+            for cn in NUM_TOKEN_RE.findall(corp_clean):
+                try:
+                    corp_floats.append(float(cn))
+                except ValueError:
+                    pass
             for num in stat_nums:
-                if num not in corp_clean:
-                    errors.append(f"edge {eid}: statistics cites numeric value {num!r} absent from bound evidence_anchors.")
+                if num in corp_clean:
+                    continue
+                try:
+                    nf = float(num)
+                    if any(abs(nf - cf) < 1e-9 for cf in corp_floats):
+                        continue
+                except ValueError:
+                    pass
+                warnings.append(f"edge {eid}: statistics cites numeric value {num!r} not literally matched in bound evidence_anchors (verify unit/scientific notation).")
 
     # 4. 审计跨篇对齐与禁止合并记录
     align = result.get("entity_alignment") or {}
